@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 # -*- coding: utf-8 -*-
 __author__ = 'Kevin M. Jablonka'
 __copyright__ = 'MIT License'
