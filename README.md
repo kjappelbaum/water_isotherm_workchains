@@ -16,7 +16,8 @@ time in inserting new particles.
 
 ## Notes
 - My development version of the RASPA plugin need to be used to retrieve statistics about the MC moves 
-  and the RDFs
+  and the RDFs, you can install it with 
+  `pip install git+https://github.com/kjappelbaum/aiida-raspa.git@develop`
 - The settings are not optimized but rather used for a "prove of concept"
 - Make sure to expand the unitcells before you use the workchain. The workchain also implements
   the expansion using the orthogonal widths, but it is not tested, especially, I do not know how RASPA
