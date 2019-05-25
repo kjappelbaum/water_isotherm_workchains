@@ -12,7 +12,7 @@ from aiida.common.example_helpers import test_and_get_code
 from aiida.orm import DataFactory
 from aiida.orm.data.base import Float
 from aiida.work.run import submit
-from workchains.gcmc_restart_workchain import ResubmitGCMC
+from workchains.gcmc_md_workchain import GCMCMD
 
 # data objects
 ParameterData = DataFactory('parameter')
@@ -68,10 +68,9 @@ raspa_parameters_gcmc = ParameterData(
 raspa_parameters_gcmc_0 = ParameterData(
     dict={
         "GeneralSettings": {
-            "SimulationType": "MolecularDynamics",
-            "NumberOfCycles": 20000,
-            "NumberOfInitializationCycles": 0,
-            "NumberOfEquilibrationCycles": 0,
+            "SimulationType": "MonteCarlo",
+            "NumberOfCycles": 2000,
+            "NumberOfInitializationCycles": 10000,
             "ChargeMethod": "Ewald",
             "CutOff": 12.0,
             'RemoveAtomNumberCodeFromLabel': 'yes',
@@ -82,26 +81,55 @@ raspa_parameters_gcmc_0 = ParameterData(
             "Framework": 0,
             "UnitCells": "1 1 1",
             "HeliumVoidFraction": 0.0,
-            "Ensemble": "NVT",
-            "TimeStep": 0.0005,
-            "ExternalTemperature": 330.0,
+            "ExternalTemperature": 298.0,
         },
         "Component": [{
             "MoleculeName": "CO2",
             "MoleculeDefinition": "TraPPE",
-            "TranslationProbability": 1.0,
-            "RotationProbability": 1.0,
-            "ReinsertionProbability": 1.0,
+            "TranslationProbability": 0.5,
+            "RotationProbability": 0.5,
+            "ReinsertionProbability": 0.5,
+            "SwapProbability": 1.0,
             "CreateNumberOfMolecules": 0,
         }],
     })
+
+raspa_parameters_md = ParameterData(
+    dict={
+        "GeneralSettings": {
+            "SimulationType": "MonteCarlo",
+            "NumberOfCycles": 2000,
+            "NumberOfInitializationCycles": 10000,
+            "ChargeMethod": "Ewald",
+            "CutOff": 12.0,
+            'RemoveAtomNumberCodeFromLabel': 'yes',
+            "ComputeRDF": "yes",
+            "WriteRDFEvery": 1000,
+            "Forcefield": "LSMO_UFF-TraPPE",
+            "EwaldPrecision": 1e-6,
+            "Framework": 0,
+            "UnitCells": "1 1 1",
+            "HeliumVoidFraction": 0.0,
+            "ExternalTemperature": 298.0,
+        },
+        "Component": [{
+            "MoleculeName": "CO2",
+            "MoleculeDefinition": "TraPPE",
+            "TranslationProbability": 0.5,
+            "RotationProbability": 0.5,
+            "ReinsertionProbability": 0.5,
+            "SwapProbability": 1.0,
+            "CreateNumberOfMolecules": 0,
+        }],
+    })
+
 
 zeopp_code = test_and_get_code('zeopp@deneb',
                                expected_code_type='zeopp.network')
 raspa_code = test_and_get_code('raspa@deneb', expected_code_type='raspa')
 
 submit(
-    ResubmitGCMC,
+    GCMCMD,
     structure=structure,
     probe_radius=Float(probe_radius),
     number_runs=Float(number_runs),
@@ -112,7 +140,6 @@ submit(
     raspa_code=raspa_code,
     raspa_parameters=raspa_parameters_gcmc,
     raspa_parameters_gcmc_0=raspa_parameters_gcmc_0,
-    raspa_parameters_md=raspa_parameters_md,
     _raspa_options=zr_options,
     _usecharges=True,
     _label='Isotherm',

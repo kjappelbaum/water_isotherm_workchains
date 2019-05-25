@@ -20,7 +20,7 @@ time in inserting new particles.
 - The settings are not optimized but rather used for a "prove of concept"
 - Make sure to expand the unitcells before you use the workchain. The workchain also implements
   the expansion using the orthogonal widths, but it is not tested, especially, I do not know how RASPA
-  deals with the charge loop in this case 
+  deals with the charge loop in this case. You can use Daniele Ongari's `manage_crystal` to do this. 
 - If you do not want the RDF output to explode use `'RemoveAtomNumberCodeFromLabel': 'yes'`. The RASPA
   manual states that the charges are still used correctly and our tests show that this is indeed the case
 
