@@ -15,8 +15,10 @@ from aiida.orm.data.base import Float
 from aiida.work import workfunction as wf
 from aiida.work.run import submit
 from aiida.work.workchain import WorkChain, ToContext, while_, Outputs
-from copy import deepcopy
 from aiida_raspa.workflows import RaspaConvergeWorkChain
+
+import pandas as pd
+import os
 
 ZeoppCalculation = CalculationFactory('zeopp.network')
 
@@ -28,6 +30,12 @@ ParameterData = DataFactory('parameter')
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
 SinglefileData = DataFactory('singlefile')
+
+
+@wf
+def read_rdf_file(file):
+    df = pd.read_csv(file, comment='#', header=None, sep='\s+')
+    return df.iloc[:, 2].values
 
 
 class ResubmitGCMC(WorkChain):
@@ -71,16 +79,16 @@ class ResubmitGCMC(WorkChain):
         # workflow
         spec.outline(
             cls.
-            init,  # read pressures, switch on cif charges if _usecharges=True
+            init,
             cls.
-            run_block_zeopp,  # computes sa, vol, povol, res, e chan, block pockets
+            run_block_zeopp,  # computes volpo and block pockets
             cls.
-            init_raspa_calc,  # assign HeliumVoidFraction=POAV and UnitCells
+            init_raspa_calc,  # assign HeliumVoidFraction=POAV
             cls.run_first_gcmc,
             cls.parse_loading_raspa,
             while_(cls.should_run_loading_raspa)(
                 cls.
-                run_loading_raspa,  # for each P, recover the last snapshoot of the previous and run GCMC
+                run_loading_raspa,  # for each run, recover the last snapshoot of the previous and run GCMC
                 cls.parse_loading_raspa,
             ),
             cls.return_results,
@@ -100,6 +108,22 @@ class ResubmitGCMC(WorkChain):
         self.ctx.enthalpy_of_adsorption_dev = {}
         self.ctx_rdf_hw_hw = {}
         self.ctx_rdf_hw_framework = {}
+        self.ctx.ads_ads_coulomb_energy_average = {}
+        self.ctx.ads_ads_coulomb_energy_dev = {}
+        self.ctx.ads_ads_total_energy_average = {}
+        self.ctx.ads_ads_total_energy_dev = {}
+        self.ctx.ads_ads_vdw_energy_average = {}
+        self.ctx.ads_ads_vdw_energy_dev = {}
+        self.ctx.adsorbate_density_average = {}
+        self.ctx.absorbate_density_dev = {}
+        self.ctx.host_ads_coulomb_energy_average = {}
+        self.ctx.host_ads_coulomb_energy_dev = {}
+        self.ctx.host_ads_total_energy_average = {}
+        self.ctx.host_ads_total_energy_dev = {}
+        self.ctx.host_ads_vdw_energy_average = {}
+        self.ctx.host_ads_vdw_energy_dev = {}
+        self.ctx.total_energy_average = {}
+        self.ctx.total_energy_dev = {}
 
         self.ctx.raspa_parameters = self.inputs.raspa_parameters.get_dict()
 
@@ -152,6 +176,11 @@ class ResubmitGCMC(WorkChain):
 
     def parse_rdf(self):
         """Parse the radial distribution function if available"""
+        try:
+            self.ctx_rdf_hw_hw[self.ctx.current_run] = read_rdf_file()
+            self.ctx_rdf_hw_framework[self.ctx.current_run] = read_rdf_file()
+        except Exception:
+            pass
 
     def init_raspa_calc(self):
         """Parse the output of Zeo++ and instruct the input for Raspa. """
@@ -266,6 +295,40 @@ class ResubmitGCMC(WorkChain):
         enthalpy_of_adsorption_dev = self.ctx.raspa_loading[
             "output_parameters"].dict.enthalpy_of_adsorption_dev
 
+        ads_ads_coulomb_energy_average =  self.ctx.raspa_loading[
+            "output_parameters"].dict.ads_ads_coulomb_energy_average
+        ads_ads_coulomb_energy_dev =  self.ctx.raspa_loading[
+            "output_parameters"].dict.ads_ads_coulomb_energy_dev
+        ads_ads_total_energy_average =  self.ctx.raspa_loading[
+            "output_parameters"].dict.ads_ads_total_energy_average
+        ads_ads_total_energy_dev =  self.ctx.raspa_loading[
+            "output_parameters"].dict.ads_ads_total_energy_dev
+        ads_ads_vdw_energy_average = self.ctx.raspa_loading[
+            "output_parameters"].dict.ads_ads_vdw_energy_average
+        ads_ads_vdw_energy_dev =  self.ctx.raspa_loading[
+            "output_parameters"].dict.ads_ads_vdw_energy_dev
+        adsorbate_density_average = self.ctx.raspa_loading[
+            "output_parameters"].dict.adsorbate_density_average
+        absorbate_density_dev =  self.ctx.raspa_loading[
+            "output_parameters"].dict.absorbate_density_dev
+        host_ads_coulomb_energy_average = self.ctx.raspa_loading[
+            "output_parameters"].dict.host_ads_coulomb_energy_average
+        host_ads_coulomb_energy_dev = self.ctx.raspa_loading[
+            "output_parameters"].dict.host_ads_coulomb_energy_dev
+        host_ads_total_energy_average = self.ctx.raspa_loading[
+            "output_parameters"].dict.host_ads_total_energy_average
+        host_ads_total_energy_dev = self.ctx.raspa_loading[
+            "output_parameters"].dict.host_ads_total_energy_dev
+        host_ads_vdw_energy_average = self.ctx.raspa_loading[
+            "output_parameters"].dict.host_ads_vdw_energy_average
+        host_ads_vdw_energy_dev = self.ctx.raspa_loading[
+            "output_parameters"].dict.host_ads_vdw_energy_dev
+        total_energy_average =  self.ctx.raspa_loading[
+            "output_parameters"].dict.total_energy_average
+        total_energy_dev = self.ctx.raspa_loading[
+            "output_parameters"].dict.total_energy_dev
+
+
         self.ctx.loading[self.ctx.current_run] = loading_average
         self.ctx.loading_dev[self.ctx.current_run] = loading_dev
         self.ctx.enthalpy_of_adsorption[
@@ -274,6 +337,23 @@ class ResubmitGCMC(WorkChain):
             self.ctx.current_run] = enthalpy_of_adsorption_dev
         self.ctx_rdf_hw_hw = {}
         self.ctx_rdf_hw_framework = {}
+
+        self.ctx.ads_ads_coulomb_energy_average[self.ctx.current_run] = ads_ads_coulomb_energy_average
+        self.ctx.ads_ads_coulomb_energy_dev[self.ctx.current_run]  = ads_ads_coulomb_energy_dev
+        self.ctx.ads_ads_total_energy_average[self.ctx.current_run] = ads_ads_total_energy_average
+        self.ctx.ads_ads_total_energy_dev[self.ctx.current_run] = ads_ads_total_energy_dev
+        self.ctx.ads_ads_vdw_energy_average[self.ctx.current_run] = ads_ads_vdw_energy_average
+        self.ctx.ads_ads_vdw_energy_dev[self.ctx.current_run] = ads_ads_vdw_energy_dev
+        self.ctx.adsorbate_density_average[self.ctx.current_run] = adsorbate_density_average
+        self.ctx.absorbate_density_dev[self.ctx.current_run] = absorbate_density_dev
+        self.ctx.host_ads_coulomb_energy_average[self.ctx.current_run] = host_ads_coulomb_energy_average
+        self.ctx.host_ads_coulomb_energy_dev[self.ctx.current_run] = host_ads_coulomb_energy_dev
+        self.ctx.host_ads_total_energy_average[self.ctx.current_run] = host_ads_total_energy_average
+        self.ctx.host_ads_total_energy_dev[self.ctx.current_run] = host_ads_total_energy_dev
+        self.ctx.host_ads_vdw_energy_average[self.ctx.current_run] = host_ads_vdw_energy_average
+        self.ctx.host_ads_vdw_energy_dev[self.ctx.current_run] = host_ads_vdw_energy_dev
+        self.ctx.total_energy_average[self.ctx.current_run] = total_energy_average
+        self.ctx.total_energy_dev[self.ctx.current_run] = total_energy_dev
 
     def return_results(self):
         """Attach the results to the output."""
@@ -311,6 +391,32 @@ class ResubmitGCMC(WorkChain):
                 'conversion_factor_molec_uc_to_mol_kg'] = self.ctx.raspa_loading[
                     "component_0"].get_dict(
                     )['conversion_factor_molec_uc_to_mol_kg']
+            result_dict['rdf_hw_hw'] = self.ctx.rdf_hw_hw
+            result_dict['rdf_hw_framework'] = self.ctx_rdf_hw_framework
+            result_dict['loading_averages'] = self.ctx.loading
+            result_dict['loading_dev'] = self.ctx.loading_dev
+            result_dict[
+                'enthalpy_of_adsorption'] = self.ctx.enthalpy_of_adsorption
+            result_dict[
+                'enthalpy_of_adsorption_dev'] = self.ctx.enthalpy_of_adsorption_dev
+
+            result_dict['ads_ads_coulomb_energy_average'] = self.ctx.ads_ads_coulomb_energy_average
+            result_dict['ads_ads_coulomb_energy_dev'] = self.ctx.ads_ads_coulomb_energy_dev
+            result_dict['ads_ads_total_energy_average'] = self.ctx.ads_ads_total_energy_average
+            result_dict['ads_ads_total_energy_dev'] = self.ctx.ads_ads_total_energy_dev
+            result_dict['ads_ads_vdw_energy_average'] = self.ctx.ads_ads_vdw_energy_average
+            result_dict['ads_ads_vdw_energy_dev'] = self.ctx.ads_ads_vdw_energy_dev
+            result_dict['adsorbate_density_average'] = self.ctx.adsorbate_density_average
+            result_dict['absorbate_density_dev'] = self.ctx.absorbate_density_dev
+            result_dict['host_ads_coulomb_energy_average'] = self.ctx.host_ads_coulomb_energy_average
+            result_dict['host_ads_coulomb_energy_dev'] = self.ctx.host_ads_coulomb_energy_dev
+            result_dict['host_ads_total_energy_average'] = self.ctx.host_ads_total_energy_average
+            result_dict['host_ads_total_energy_dev'] = self.ctx.host_ads_total_energy_dev
+            result_dict['host_ads_vdw_energy_average'] = self.ctx.host_ads_vdw_energy_average
+            result_dict['host_ads_vdw_energy_dev'] = self.ctx.host_ads_vdw_energy_dev
+            result_dict['total_energy_average'] = self.ctx.total_energy_average
+            result_dict['total_energy_dev'] = self.ctx.total_energy_dev
+
         except AttributeError:
             pass
 
