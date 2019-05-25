@@ -12,7 +12,7 @@ from aiida.common.example_helpers import test_and_get_code
 from aiida.orm import DataFactory
 from aiida.orm.data.base import Float
 from aiida.work.run import submit
-from workchains.gcmc_restart_workchain import ResubmitGCMC
+from water_isotherm_workchains.gcmc_restart_workchain import ResubmitGCMC
 
 # data objects
 ParameterData = DataFactory('parameter')
