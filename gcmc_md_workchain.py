@@ -71,13 +71,13 @@ class GCMCMD(WorkChain):
             cls.init,
             cls.run_block_zeopp,  # computes volpo and block pockets
             cls.init_raspa_calc,  # assign HeliumVoidFraction=POAV
-            cls.run_first_gcmc,
-            cls.parse_loading_raspa,
+            cls.run_first_gcmc,   # first GCMC is longer and with intialization
+            cls.parse_loading_raspa,  # then move to loop in which one cycles between MD and MC
             while_(cls.should_run_loading_raspa)(
                 cls.run_md,
-                cls.parse_md,
+                cls.parse_loading_raspa,
                 cls.
-                run_loading_raspa,  # for each run, recover the last snapshoot of the previous and run GCMC
+                run_loading_raspa,  # for each run, recover the last snapshot of the previous and run GCMC
                 cls.parse_loading_raspa,
             ),
             cls.return_results,
@@ -97,6 +97,8 @@ class GCMCMD(WorkChain):
         self.ctx.enthalpy_of_adsorption = {}
         self.ctx.enthalpy_of_adsorption_dev = {}
         self.ctx_rdfs = {}
+        self.ctx.mc_statistics = {}
+        self.ctx.raspa_warnings = {}
         self.ctx.ads_ads_coulomb_energy_average = {}
         self.ctx.ads_ads_coulomb_energy_dev = {}
         self.ctx.ads_ads_total_energy_average = {}
@@ -199,7 +201,7 @@ class GCMCMD(WorkChain):
     def should_run_loading_raspa(self):
         """We run another raspa calculation only if the current iteration is smaller than
         the total number of pressures we want to compute."""
-        return self.ctx.current_run < len(self.ctx.number_runs)
+        return self.ctx.current_run_counter < len(self.ctx.number_runs)
 
     def run_first_gcmc(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
@@ -240,8 +242,12 @@ class GCMCMD(WorkChain):
         self.ctx.raspa_parameters_md['GeneralSettings'][
             "NumberOfInitializationCycles"] = 0
 
-        # Let's hardcode some stuff to be sure for development
+        # Let's hardcode some stuff to be sure for development, I am especially not sure if the restart function
+        # would work otherwise (i.e. if there is no pressure in GeneralSettings
+
         self.ctx.raspa_parameters_md['GeneralSettings']["Ensemble"] = 'NVT'
+        self.ctx.raspa_parameters_md['GeneralSettings'][
+            'ExternalPressure'] = 0
 
         parameters = ParameterData(dict=self.ctx.raspa_parameters_md).store()
         # Create the input dictionary
@@ -354,10 +360,14 @@ class GCMCMD(WorkChain):
             "output_parameters"].dict.total_energy_average
         total_energy_dev = self.ctx.raspa_loading[
             "output_parameters"].dict.total_energy_dev
+        mc_statistics = self.ctx.raspa_loading['output_parameters'].dict.mc_move_statistics
 
         rdfs = self.ctx.raspa_loading["output_parameters"].dict.rdfs
+        raspa_warnings = self.ctx.raspa_loading['output_parameters'].dict.raspa_warnings
 
+        self.ctx.raspa_warnings[self.ctx.current_run] = raspa_warnings
         self.ctx.loading[self.ctx.current_run] = loading_average
+        self.ctx.mc_statistics[self.ctx.current_run] = mc_statistics
         self.ctx.loading_dev[self.ctx.current_run] = loading_dev
         self.ctx.enthalpy_of_adsorption[
             self.ctx.current_run] = enthalpy_of_adsorption
@@ -475,8 +485,8 @@ class GCMCMD(WorkChain):
         except AttributeError:
             pass
 
-    self.out("results", ParameterData(dict=result_dict).store())
-    self.out('blocking_spheres', self.ctx.zeopp['block'])
-    self.report("Workchain <{}> completed successfully".format(self.calc.pk))
+        self.out("results", ParameterData(dict=result_dict).store())
+        self.out('blocking_spheres', self.ctx.zeopp['block'])
+        self.report("Workchain <{}> completed successfully".format(self.calc.pk))
 
-    return
+        return

@@ -74,7 +74,7 @@ class ResubmitGCMC(WorkChain):
             cls.parse_loading_raspa,
             while_(cls.should_run_loading_raspa)(
                 cls.
-                run_loading_raspa,  # for each run, recover the last snapshoot of the previous and run GCMC
+                run_loading_raspa,  # for each run, recover the last snapshot of the previous and run GCMC
                 cls.parse_loading_raspa,
             ),
             cls.return_results,
@@ -93,6 +93,8 @@ class ResubmitGCMC(WorkChain):
         self.ctx.enthalpy_of_adsorption = {}
         self.ctx.enthalpy_of_adsorption_dev = {}
         self.ctx_rdfs = {}
+        self.ctx.raspa_warnings = {}
+        self.ctx.mc_statistics = {}
         self.ctx.ads_ads_coulomb_energy_average = {}
         self.ctx.ads_ads_coulomb_energy_dev = {}
         self.ctx.ads_ads_total_energy_average = {}
@@ -201,14 +203,8 @@ class ResubmitGCMC(WorkChain):
             self.inputs._raspa_options,
             '_label':
             "run_first_loading_raspa",
-            'settings':
-            ParameterData(
-                dict={
-                    'additional_retrieve_list':
-                    ['RadialDistributionFunctions/System_0/*'],
-                })
         }
-        # Check if there are poket blocks to be loaded
+        # Check if there are pocket blocks to be loaded
         try:
             inputs['block_component_0'] = self.ctx.zeopp['block']
         except Exception:
@@ -312,8 +308,13 @@ class ResubmitGCMC(WorkChain):
             "output_parameters"].dict.total_energy_dev
 
         rdfs = self.ctx.raspa_loading["output_parameters"].dict.rdfs
+        mc_statistics = self.ctx.raspa_loading['output_parameters'].dict.mc_move_statistics
+        raspa_warnings = self.ctx.raspa_loading['output_parameters'].dict.raspa_warnings
 
+        self.ctx.raspa_warnings[self.ctx.current_run] = raspa_warnings
         self.ctx.loading[self.ctx.current_run] = loading_average
+        self.ctx.mc_statistics[self.ctx.current_run] = mc_statistics
+
         self.ctx.loading_dev[self.ctx.current_run] = loading_dev
         self.ctx.enthalpy_of_adsorption[
             self.ctx.current_run] = enthalpy_of_adsorption
@@ -432,8 +433,8 @@ class ResubmitGCMC(WorkChain):
         except AttributeError:
             pass
 
-    self.out("results", ParameterData(dict=result_dict).store())
-    self.out('blocking_spheres', self.ctx.zeopp['block'])
-    self.report("Workchain <{}> completed successfully".format(self.calc.pk))
+        self.out("results", ParameterData(dict=result_dict).store())
+        self.out('blocking_spheres', self.ctx.zeopp['block'])
+        self.report("Workchain <{}> completed successfully".format(self.calc.pk))
 
-    return
+        return
