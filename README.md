@@ -27,4 +27,25 @@ time in inserting new particles.
 ## Usage
 1. Read the notes 
 2. Clean this repository   
-  
+
+
+## Settings for the study 
+
+
+| Value                     | Setting                   |
+| --------------------------| --------------------------|
+| probe radius / A          | 3.1589/2.                 |
+| force field               | UFF with all interactions |
+| water model               | TIP4P 2005                | 
+| partial charge derivation method | DDEC               | 
+| number repeats            | 30                        | 
+| number initialization cycles | 20 000                 | 
+| cycles first GCMC         | 5 000                     |
+| cycles short GCMC         | 1 000                     | 
+| temperature GCMC / K      | 298.0                     | 
+| temperature MD  / K       | 298.0                     | 
+| timestep MD / fs          | 0.0005                    |
+| cycles MD                 | 10 000                    |
+| pressures /  Pa           |  00.0001E5, 00.001E5, 00.002E5, 00.004E5, 00.006E5, 00.008E5, 00.011E5, 00.014E5, 00.016E5, 00.018E5, 00.021E5, 00.023E5, 00.026E5, 00.0298E5, 00.036E5, 00.04E5|
+| cutoff / A                | 13                        |
+| tail-correction           | yes, since RASPA uses switching potential there is no problem in MD |
