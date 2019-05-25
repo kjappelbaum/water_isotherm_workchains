@@ -97,31 +97,34 @@ raspa_parameters_gcmc_0 = ParameterData(
 raspa_parameters_md = ParameterData(
     dict={
         "GeneralSettings": {
-            "SimulationType": "MonteCarlo",
-            "NumberOfCycles": 2000,
-            "NumberOfInitializationCycles": 10000,
+            "SimulationType": "MolecularDynamics",
+            "NumberOfCycles": 20000,
+            "NumberOfInitializationCycles": 0,
+            "NumberOfEquilibrationCycles": 0,
             "ChargeMethod": "Ewald",
             "CutOff": 12.0,
             'RemoveAtomNumberCodeFromLabel': 'yes',
             "ComputeRDF": "yes",
-            "WriteRDFEvery": 1000,
+            "WriteRDFEvery": 20000,
             "Forcefield": "LSMO_UFF-TraPPE",
             "EwaldPrecision": 1e-6,
             "Framework": 0,
             "UnitCells": "1 1 1",
             "HeliumVoidFraction": 0.0,
-            "ExternalTemperature": 298.0,
+            "Ensemble": "NVT",
+            "TimeStep": 0.0005,
+            "ExternalTemperature": 330.0,
         },
         "Component": [{
             "MoleculeName": "CO2",
             "MoleculeDefinition": "TraPPE",
-            "TranslationProbability": 0.5,
-            "RotationProbability": 0.5,
-            "ReinsertionProbability": 0.5,
-            "SwapProbability": 1.0,
+            "TranslationProbability": 1.0,
+            "RotationProbability": 1.0,
+            "ReinsertionProbability": 1.0,
             "CreateNumberOfMolecules": 0,
         }],
     })
+
 
 
 zeopp_code = test_and_get_code('zeopp@deneb',

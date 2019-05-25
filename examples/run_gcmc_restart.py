@@ -27,6 +27,7 @@ atomic_radii = SinglefileData(file=os.path.abspath(
 number_runs = 10  # how often do we repeat the short GCMC?
 pressure = 1000  # in Pa
 
+
 # option for zeo++ and raspa
 zr_options = {
     "resources": {
@@ -68,10 +69,9 @@ raspa_parameters_gcmc = ParameterData(
 raspa_parameters_gcmc_0 = ParameterData(
     dict={
         "GeneralSettings": {
-            "SimulationType": "MolecularDynamics",
-            "NumberOfCycles": 20000,
-            "NumberOfInitializationCycles": 0,
-            "NumberOfEquilibrationCycles": 0,
+            "SimulationType": "MonteCarlo",
+            "NumberOfCycles": 2000,
+            "NumberOfInitializationCycles": 10000,
             "ChargeMethod": "Ewald",
             "CutOff": 12.0,
             'RemoveAtomNumberCodeFromLabel': 'yes',
@@ -82,19 +82,19 @@ raspa_parameters_gcmc_0 = ParameterData(
             "Framework": 0,
             "UnitCells": "1 1 1",
             "HeliumVoidFraction": 0.0,
-            "Ensemble": "NVT",
-            "TimeStep": 0.0005,
-            "ExternalTemperature": 330.0,
+            "ExternalTemperature": 298.0,
         },
         "Component": [{
             "MoleculeName": "CO2",
             "MoleculeDefinition": "TraPPE",
-            "TranslationProbability": 1.0,
-            "RotationProbability": 1.0,
-            "ReinsertionProbability": 1.0,
+            "TranslationProbability": 0.5,
+            "RotationProbability": 0.5,
+            "ReinsertionProbability": 0.5,
+            "SwapProbability": 1.0,
             "CreateNumberOfMolecules": 0,
         }],
     })
+
 
 zeopp_code = test_and_get_code('zeopp@deneb',
                                expected_code_type='zeopp.network')
