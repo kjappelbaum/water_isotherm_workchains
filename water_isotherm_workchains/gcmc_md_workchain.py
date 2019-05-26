@@ -361,7 +361,7 @@ class GCMCMD(WorkChain):
             'output_parameters'].dict.mc_move_statistics
         rdfs = self.ctx.raspa_loading["output_parameters"].dict.rdfs
         raspa_warnings = self.ctx.raspa_loading[
-            'output_parameters'].dict.raspa_warnings
+            'output_parameters'].dict.raspa
         tail_correction_energy_average = self.ctx.raspa_loading[
             'output_parameters'].dict.tail_correction_energy_average
         tail_correction_energy_dev = self.ctx.raspa_loading[
