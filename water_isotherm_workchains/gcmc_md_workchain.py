@@ -69,7 +69,7 @@ class GCMCMD(WorkChain):
         # workflow
         spec.outline(
             cls.init,
-            cls.run_block_zeopp,  # computes volpo and block pockets
+            cls.run_zeopp,  # computes volpo and block pockets
             cls.init_raspa_calc,  # assign HeliumVoidFraction=POAV
             cls.run_first_gcmc,   # first GCMC is longer and with intialization
             cls.parse_loading_raspa,  # then move to loop in which one cycles between MD and MC
