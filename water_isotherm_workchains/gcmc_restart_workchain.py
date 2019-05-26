@@ -188,7 +188,7 @@ class ResubmitGCMC(WorkChain):
 
     def run_first_gcmc(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
-        self.ctx.raspa_parameters['GeneralSettings'][
+        self.ctx.raspa_parameters_gcmc_0['GeneralSettings'][
             'ExternalPressure'] = self.ctx.pressure
 
         parameters = ParameterData(dict=self.ctx.raspa_parameters_gcmc_0).store()
@@ -225,9 +225,9 @@ class ResubmitGCMC(WorkChain):
 
     def run_loading_raspa(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
-        self.ctx.raspa_parameters['GeneralSettings'][
+        self.ctx.raspa_parameters_gcmc['GeneralSettings'][
             "NumberOfInitializationCycles"] = 0
-        self.ctx.raspa_parameters['GeneralSettings'][
+        self.ctx.raspa_parameters_gcmc['GeneralSettings'][
             'ExternalPressure'] = self.ctx.pressure
 
         parameters = ParameterData(dict=self.ctx.raspa_parameters_gcmc).store()
