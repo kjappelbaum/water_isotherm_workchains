@@ -306,48 +306,44 @@ class ResubmitGCMC(WorkChain):
         tail_correction_energy_dev = self.ctx.raspa_loading[
             'output_parameters'].dict.tail_correction_energy_dev
 
+        curr_run = str(self.ctx.current_run)
         self.ctx.tail_correction_energy_average[
-            self.ctx.current_run] = tail_correction_energy_average
+            curr_run] = tail_correction_energy_average
         self.ctx.tail_correction_energy_dev[
-            self.ctx.current_run] = tail_correction_energy_dev
-        self.ctx.raspa_warnings[self.ctx.current_run] = raspa_warnings
-        self.ctx.loading[self.ctx.current_run] = loading_average
-        self.ctx.mc_statistics[self.ctx.current_run] = mc_statistics
+            curr_run] = tail_correction_energy_dev
+        self.ctx.raspa_warnings[curr_run] = raspa_warnings
+        self.ctx.loading[curr_run] = loading_average
+        self.ctx.mc_statistics[curr_run] = mc_statistics
 
-        self.ctx.loading_dev[self.ctx.current_run] = loading_dev
-        self.ctx.enthalpy_of_adsorption[
-            self.ctx.current_run] = enthalpy_of_adsorption
+        self.ctx.loading_dev[curr_run] = loading_dev
+        self.ctx.enthalpy_of_adsorption[curr_run] = enthalpy_of_adsorption
         self.ctx.enthalpy_of_adsorption_dev[
-            self.ctx.current_run] = enthalpy_of_adsorption_dev
-        self.ctx.rdfs = rdfs
+            curr_run] = enthalpy_of_adsorption_dev
+        self.ctx.rdfs[curr_run] = rdfs
 
         self.ctx.ads_ads_coulomb_energy_average[
-            self.ctx.current_run] = ads_ads_coulomb_energy_average
+            curr_run] = ads_ads_coulomb_energy_average
         self.ctx.ads_ads_coulomb_energy_dev[
-            self.ctx.current_run] = ads_ads_coulomb_energy_dev
+            curr_run] = ads_ads_coulomb_energy_dev
         self.ctx.ads_ads_total_energy_average[
-            self.ctx.current_run] = ads_ads_total_energy_average
-        self.ctx.ads_ads_total_energy_dev[
-            self.ctx.current_run] = ads_ads_total_energy_dev
+            curr_run] = ads_ads_total_energy_average
+        self.ctx.ads_ads_total_energy_dev[curr_run] = ads_ads_total_energy_dev
         self.ctx.ads_ads_vdw_energy_average[
-            self.ctx.current_run] = ads_ads_vdw_energy_average
-        self.ctx.ads_ads_vdw_energy_dev[
-            self.ctx.current_run] = ads_ads_vdw_energy_dev
+            curr_run] = ads_ads_vdw_energy_average
+        self.ctx.ads_ads_vdw_energy_dev[curr_run] = ads_ads_vdw_energy_dev
         self.ctx.host_ads_coulomb_energy_average[
-            self.ctx.current_run] = host_ads_coulomb_energy_average
+            curr_run] = host_ads_coulomb_energy_average
         self.ctx.host_ads_coulomb_energy_dev[
-            self.ctx.current_run] = host_ads_coulomb_energy_dev
+            curr_run] = host_ads_coulomb_energy_dev
         self.ctx.host_ads_total_energy_average[
-            self.ctx.current_run] = host_ads_total_energy_average
+            curr_run] = host_ads_total_energy_average
         self.ctx.host_ads_total_energy_dev[
-            self.ctx.current_run] = host_ads_total_energy_dev
+            curr_run] = host_ads_total_energy_dev
         self.ctx.host_ads_vdw_energy_average[
-            self.ctx.current_run] = host_ads_vdw_energy_average
-        self.ctx.host_ads_vdw_energy_dev[
-            self.ctx.current_run] = host_ads_vdw_energy_dev
-        self.ctx.total_energy_average[
-            self.ctx.current_run] = total_energy_average
-        self.ctx.total_energy_dev[self.ctx.current_run] = total_energy_dev
+            curr_run] = host_ads_vdw_energy_average
+        self.ctx.host_ads_vdw_energy_dev[curr_run] = host_ads_vdw_energy_dev
+        self.ctx.total_energy_average[curr_run] = total_energy_average
+        self.ctx.total_energy_dev[curr_run] = total_energy_dev
 
     def return_results(self):
         """Attach the results to the output."""
@@ -368,7 +364,9 @@ class ResubmitGCMC(WorkChain):
             result_dict[
                 'number_blocking_spheres'] = self.ctx.number_blocking_spheres
         except AttributeError:
-            self.report('Problems with returning the results dictionary for the zeopp part.')
+            self.report(
+                'Problems with returning the results dictionary for the zeopp part.'
+            )
             pass
 
         # Raspa loading
@@ -427,7 +425,9 @@ class ResubmitGCMC(WorkChain):
             result_dict['total_energy_dev'] = self.ctx.total_energy_dev
 
         except AttributeError:
-            self.report('Problems with returning the results dictionary for the RASPA part.')
+            self.report(
+                'Problems with returning the results dictionary for the RASPA part.'
+            )
             pass
 
         self.out("results", ParameterData(dict=result_dict).store())
