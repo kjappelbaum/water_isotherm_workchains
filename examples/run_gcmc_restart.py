@@ -19,11 +19,11 @@ ParameterData = DataFactory('parameter')
 CifData = DataFactory('cif')
 SinglefileData = DataFactory('singlefile')
 
-structure = CifData(file=os.getcwd() + 'uio-66.cif')
+structure = CifData(os.path.join('..', 'test_files', 'uio-66.cif'))
 probe_radius = 1.525
 atomic_radii = SinglefileData(file=os.path.abspath(
-    "/home/kevin/Documents/uni/EPFL/master_thesis/cof_ml_work/featurization/zeopp.rad"
-))  #
+    "../test_files/zeopp.rad"
+))
 number_runs = 2  # how often do we repeat the short GCMC?
 pressure = 1000  # in Pa
 
