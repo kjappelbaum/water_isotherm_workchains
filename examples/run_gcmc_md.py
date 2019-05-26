@@ -24,7 +24,7 @@ probe_radius = 1.525
 atomic_radii = SinglefileData(file=os.path.abspath(
     "../test_files/zeopp.rad"
 ))  #
-number_runs = 10  # how often do we repeat the GCMC/MD cyle?
+number_runs = 5  # how often do we repeat the GCMC/MD cyle?
 pressure = 1000  # in Pa
 
 # option for zeo++ and raspa
