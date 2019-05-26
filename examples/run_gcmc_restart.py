@@ -103,7 +103,7 @@ raspa_code = test_and_get_code('raspa2@fidis', expected_code_type='raspa')
 submit(
     ResubmitGCMC,
     structure=structure,
-    probe_radius=Float(probe_radius),
+    zeopp_probe_radius=Float(probe_radius),
     number_runs=Float(number_runs),
     pressure=Float(pressure),
     zeopp_code=zeopp_code,
