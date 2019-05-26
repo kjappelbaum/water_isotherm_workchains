@@ -14,6 +14,10 @@ A workchain that cycles between short MD trajectories and short GCMC runs with t
 some cases collective dynamics from MD is needed to 'disturb' a configuration where GCMC has a hard
 time in inserting new particles. 
 
+
+### gcmc_md_monitor_rdf (development branch)
+In development. 
+
 ## Notes
 - My development version of the RASPA plugin need to be used to retrieve statistics about the MC moves 
   and the RDFs, you can install it with 
@@ -51,6 +55,6 @@ to use the examples it might be easier to
 | temperature MD  / K       | 298.0                     | 
 | timestep MD / fs          | 0.0005                    |
 | cycles MD                 | 10 000                    |
-| pressures /  Pa           |  00.0001E5, 00.001E5, 00.002E5, 00.004E5, 00.006E5, 00.008E5, 00.011E5, 00.014E5, 00.016E5, 00.018E5, 00.021E5, 00.023E5, 00.026E5, 00.0298E5, 00.036E5, 00.04E5|
+| pressures /  Pa           | 00.0001E5, 00.001E5, 00.002E5, 00.004E5, 00.006E5, 00.008E5, 00.011E5, 00.014E5, 00.016E5, 00.018E5, 00.021E5, 00.023E5, 00.026E5, 00.0298E5, 00.036E5, 00.04E5|
 | cutoff / A                | 13                        |
 | tail-correction           | yes, since RASPA uses switching potential there is no problem in MD |
