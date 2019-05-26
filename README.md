@@ -21,7 +21,8 @@ In development.
 ## Notes
 - My development version of the RASPA plugin need to be used to retrieve statistics about the MC moves 
   and the RDFs, you can install it with 
-  `pip install git+https://github.com/kjappelbaum/aiida-raspa.git@develop`
+  `pip install git+https://github.com/kjappelbaum/aiida-raspa.git@develop` (warning! this might case problems 
+  in your older workflows. You might consider creating a special enviornment)
 - The settings are not optimized but rather used for a "prove of concept"
 - Make sure to expand the unitcells before you use the workchain. The workchain also implements
   the expansion using the orthogonal widths, but it is not tested, especially, I do not know how RASPA

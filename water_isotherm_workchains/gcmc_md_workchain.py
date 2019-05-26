@@ -264,7 +264,7 @@ class GCMCMD(WorkChain):
         # Create the calculation process and launch it
         running = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.current_run_counter += 1
-        self.ctx.current_run = str('md' + self.ctx.current_run_counter)
+        self.ctx.current_run = str('md' + str(self.ctx.current_run_counter))
         self.report("pk: {} | Running RASPA MD for the {} time".format(
             running.pid, self.ctx.current_run_counter))
 
@@ -308,7 +308,7 @@ class GCMCMD(WorkChain):
 
         # Create the calculation process and launch it
         running = submit(RaspaConvergeWorkChain, **inputs)
-        self.ctx.current_run = str('gcmc' + self.ctx.current_run_counter)
+        self.ctx.current_run = str('gcmc' + str(self.ctx.current_run_counter))
         self.report(
             "pk: {} | Running RASPA for for the {} time".
             format(running.pid,
