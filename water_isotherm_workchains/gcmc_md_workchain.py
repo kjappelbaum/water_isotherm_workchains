@@ -115,6 +115,8 @@ class GCMCMD(WorkChain):
         self.ctx.host_ads_vdw_energy_dev = {}
         self.ctx.total_energy_average = {}
         self.ctx.total_energy_dev = {}
+        self.ctx.tail_correction_energy_average = {}
+        self.ctx.tail_correction_energy_dev = {}
 
         self.ctx.raspa_parameters_gcmc = self.inputs.raspa_parameters_gcmc.get_dict(
         )
@@ -361,10 +363,13 @@ class GCMCMD(WorkChain):
         total_energy_dev = self.ctx.raspa_loading[
             "output_parameters"].dict.total_energy_dev
         mc_statistics = self.ctx.raspa_loading['output_parameters'].dict.mc_move_statistics
-
         rdfs = self.ctx.raspa_loading["output_parameters"].dict.rdfs
         raspa_warnings = self.ctx.raspa_loading['output_parameters'].dict.raspa_warnings
+        tail_correction_energy_average = self.ctx.raspa_loading['output_parameters'].dict.tail_correction_energy_average
+        tail_correction_energy_dev = self.ctx.raspa_loading['output_parameters'].dict.tail_correction_energy_dev
 
+        self.ctx.tail_correction_energy_average[self.ctx.current_run] = tail_correction_energy_average
+        self.ctx.tail_correction_energy_dev[self.ctx.current_run] = tail_correction_energy_dev
         self.ctx.raspa_warnings[self.ctx.current_run] = raspa_warnings
         self.ctx.loading[self.ctx.current_run] = loading_average
         self.ctx.mc_statistics[self.ctx.current_run] = mc_statistics

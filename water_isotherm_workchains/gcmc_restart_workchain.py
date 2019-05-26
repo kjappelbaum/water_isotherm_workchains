@@ -95,6 +95,8 @@ class ResubmitGCMC(WorkChain):
         self.ctx_rdfs = {}
         self.ctx.raspa_warnings = {}
         self.ctx.mc_statistics = {}
+        self.ctx.tail_correction_energy_average = {}
+        self.ctx.tail_correction_energy_dev = {}
         self.ctx.ads_ads_coulomb_energy_average = {}
         self.ctx.ads_ads_coulomb_energy_dev = {}
         self.ctx.ads_ads_total_energy_average = {}
@@ -310,7 +312,11 @@ class ResubmitGCMC(WorkChain):
         rdfs = self.ctx.raspa_loading["output_parameters"].dict.rdfs
         mc_statistics = self.ctx.raspa_loading['output_parameters'].dict.mc_move_statistics
         raspa_warnings = self.ctx.raspa_loading['output_parameters'].dict.raspa_warnings
+        tail_correction_energy_average = self.ctx.raspa_loading['output_parameters'].dict.tail_correction_energy_average
+        tail_correction_energy_dev = self.ctx.raspa_loading['output_parameters'].dict.tail_correction_energy_dev
 
+        self.ctx.tail_correction_energy_average[self.ctx.current_run] = tail_correction_energy_average
+        self.ctx.tail_correction_energy_dev[self.ctx.current_run] = tail_correction_energy_dev
         self.ctx.raspa_warnings[self.ctx.current_run] = raspa_warnings
         self.ctx.loading[self.ctx.current_run] = loading_average
         self.ctx.mc_statistics[self.ctx.current_run] = mc_statistics
