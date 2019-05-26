@@ -261,6 +261,9 @@ class GCMCMD(WorkChain):
             '_label': "run_md_raspa",
         }
 
+        if self.ctx.restart_raspa_calc is not None:
+            inputs['retrieved_parent_folder'] = self.ctx.restart_raspa_calc
+
         # Create the calculation process and launch it
         running = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.current_run_counter += 1
