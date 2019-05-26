@@ -19,7 +19,7 @@ ParameterData = DataFactory('parameter')
 CifData = DataFactory('cif')
 SinglefileData = DataFactory('singlefile')
 
-structure = CifData(os.path.join('..', 'test_files', 'uio-66.cif'))
+structure = CifData(file=os.path.join('..', 'test_files', 'uio-66.cif'))
 probe_radius = 1.525
 atomic_radii = SinglefileData(file=os.path.abspath(
     "../test_files/zeopp.rad"
