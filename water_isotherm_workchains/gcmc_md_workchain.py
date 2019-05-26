@@ -236,8 +236,8 @@ class GCMCMD(WorkChain):
         running = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.current_run_counter += 1
         self.report(
-            "pk: {} | Running RASPA for the pressure {} bar for the {} time".
-            format(running.pid, self.ctx.pressure / 1e5,
+            "pk: {} | Running RASPA  for the {} time".
+            format(running.pid,
                    self.ctx.current_run_counter))
 
         return ToContext(raspa_loading=Outputs(running))
@@ -312,8 +312,8 @@ class GCMCMD(WorkChain):
         running = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.current_run = str('gcmc' + self.ctx.current_run_counter)
         self.report(
-            "pk: {} | Running RASPA for the pressure {} bar for the {} time".
-            format(running.pid, self.ctx.pressure / 1e5,
+            "pk: {} | Running RASPA for for the {} time".
+            format(running.pid,
                    self.ctx.current_run_counter))
 
         return ToContext(raspa_loading=Outputs(running))

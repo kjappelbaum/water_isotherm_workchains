@@ -224,8 +224,8 @@ class ResubmitGCMC(WorkChain):
         running = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.current_run += 1
         self.report(
-            "pk: {} | Running RASPA for the pressure {} bar for the {} time".
-            format(running.pid, self.ctx.pressure / 1e5, self.ctx.current_run))
+            "pk: {} | Running RASPA  for the {} time".
+            format(running.pid,  self.ctx.current_run))
 
         return ToContext(raspa_loading=Outputs(running))
 
@@ -263,8 +263,8 @@ class ResubmitGCMC(WorkChain):
         running = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.current_run += 1
         self.report(
-            "pk: {} | Running RASPA for the pressure {} bar for the {} time".
-            format(running.pid, self.ctx.pressure / 1e5, self.ctx.current_run))
+            "pk: {} | Running RASPA  for the {} time".
+            format(running.pid, self.ctx.current_run))
 
         return ToContext(raspa_loading=Outputs(running))
 
