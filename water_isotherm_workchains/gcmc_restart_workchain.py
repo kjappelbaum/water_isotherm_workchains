@@ -187,8 +187,8 @@ class ResubmitGCMC(WorkChain):
         the total number of pressures we want to compute."""
         self.report(
             'checking if need to run more cycle. Total number of runs {}, current run {}'
-            .format(self.ctx.number_runs, self.ctx.current_run_counter))
-        return self.ctx.current_run_counter < self.ctx.number_runs
+            .format(self.ctx.number_runs, self.ctx.current_run))
+        return self.ctx.current_run < self.ctx.number_runs
 
     def run_first_gcmc(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
