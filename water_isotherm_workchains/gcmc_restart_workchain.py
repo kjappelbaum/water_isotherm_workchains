@@ -301,7 +301,7 @@ class ResubmitGCMC(WorkChain):
         mc_statistics = self.ctx.raspa_loading[
             'output_parameters'].dict.mc_move_statistics
         raspa_warnings = self.ctx.raspa_loading[
-            'output_parameters'].dict.raspa
+            'output_parameters'].dict.warnings
         tail_correction_energy_average = self.ctx.raspa_loading[
             'output_parameters'].dict.tail_correction_energy_average
         tail_correction_energy_dev = self.ctx.raspa_loading[
