@@ -34,7 +34,7 @@ class GCMCMD(WorkChain):
 
         # structure, adsorbant, pressures
         spec.input('structure', valid_type=CifData)
-        spec.input("pressure", valid_type=ArrayData)
+        spec.input("pressure", valid_type=Float)
         spec.input("number_runs", valid_type=Float)
 
         # zeopp
