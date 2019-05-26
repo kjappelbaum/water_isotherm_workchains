@@ -177,9 +177,12 @@ class ResubmitGCMC(WorkChain):
     def init_raspa_calc(self):
         """Parse the output of Zeo++ and instruct the input for Raspa. """
         # Use probe-occupiable available void fraction as the helium void fraction (for excess uptake)
-        self.ctx.raspa_parameters['GeneralSettings'][
+        self.ctx.raspa_parameters_gcmc_0['GeneralSettings'][
             'HeliumVoidFraction'] = self.ctx.zeopp[
                 'output_parameters'].get_dict()['POAV_Volume_fraction']
+        self.ctx.raspa_parameters_gcmc['GeneralSettings'][
+            'HeliumVoidFraction'] = self.ctx.zeopp[
+            'output_parameters'].get_dict()['POAV_Volume_fraction']
 
     def should_run_loading_raspa(self):
         """We run another raspa calculation only if the current iteration is smaller than
