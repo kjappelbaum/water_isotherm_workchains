@@ -16,8 +16,8 @@
     ],
     "entry_points": {
         "aiida.workflows": [
-            "aiida-water_isotherm_workchains.gcmc_md_workchain=aiida-water_isotherm_workchains.gcmc_md_workchain:GCMCMD",
-          "aiida-water_isotherm_workchains.gcmc_restart_workchain=aiida-water_isotherm_workchains.gcmc_restart_workchain:ResubmitGCMC"
+            "water_isotherm_workchains.gcmc_md_workchain=water_isotherm_workchains.gcmc_md_workchain:GCMCMD",
+          "water_isotherm_workchains.gcmc_restart_workchain=water_isotherm_workchains.gcmc_restart_workchain:ResubmitGCMC"
         ]
     }
 }
