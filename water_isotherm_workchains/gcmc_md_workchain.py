@@ -105,8 +105,6 @@ class GCMCMD(WorkChain):
         self.ctx.ads_ads_total_energy_dev = {}
         self.ctx.ads_ads_vdw_energy_average = {}
         self.ctx.ads_ads_vdw_energy_dev = {}
-        self.ctx.adsorbate_density_average = {}
-        self.ctx.absorbate_density_dev = {}
         self.ctx.host_ads_coulomb_energy_average = {}
         self.ctx.host_ads_coulomb_energy_dev = {}
         self.ctx.host_ads_total_energy_average = {}
@@ -343,10 +341,6 @@ class GCMCMD(WorkChain):
             "output_parameters"].dict.ads_ads_vdw_energy_average
         ads_ads_vdw_energy_dev = self.ctx.raspa_loading[
             "output_parameters"].dict.ads_ads_vdw_energy_dev
-        adsorbate_density_average = self.ctx.raspa_loading[
-            "output_parameters"].dict.adsorbate_density_average
-        absorbate_density_dev = self.ctx.raspa_loading[
-            "output_parameters"].dict.absorbate_density_dev
         host_ads_coulomb_energy_average = self.ctx.raspa_loading[
             "output_parameters"].dict.host_ads_coulomb_energy_average
         host_ads_coulomb_energy_dev = self.ctx.raspa_loading[
@@ -398,10 +392,6 @@ class GCMCMD(WorkChain):
             self.ctx.current_run] = ads_ads_vdw_energy_average
         self.ctx.ads_ads_vdw_energy_dev[
             self.ctx.current_run] = ads_ads_vdw_energy_dev
-        self.ctx.adsorbate_density_average[
-            self.ctx.current_run] = adsorbate_density_average
-        self.ctx.absorbate_density_dev[
-            self.ctx.current_run] = absorbate_density_dev
         self.ctx.host_ads_coulomb_energy_average[
             self.ctx.current_run] = host_ads_coulomb_energy_average
         self.ctx.host_ads_coulomb_energy_dev[

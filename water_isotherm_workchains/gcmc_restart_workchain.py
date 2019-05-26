@@ -102,8 +102,6 @@ class ResubmitGCMC(WorkChain):
         self.ctx.ads_ads_total_energy_dev = {}
         self.ctx.ads_ads_vdw_energy_average = {}
         self.ctx.ads_ads_vdw_energy_dev = {}
-        self.ctx.adsorbate_density_average = {}
-        self.ctx.absorbate_density_dev = {}
         self.ctx.host_ads_coulomb_energy_average = {}
         self.ctx.host_ads_coulomb_energy_dev = {}
         self.ctx.host_ads_total_energy_average = {}
@@ -182,14 +180,14 @@ class ResubmitGCMC(WorkChain):
                 'output_parameters'].get_dict()['POAV_Volume_fraction']
         self.ctx.raspa_parameters_gcmc['GeneralSettings'][
             'HeliumVoidFraction'] = self.ctx.zeopp[
-            'output_parameters'].get_dict()['POAV_Volume_fraction']
+                'output_parameters'].get_dict()['POAV_Volume_fraction']
 
     def should_run_loading_raspa(self):
         """We run another raspa calculation only if the current iteration is smaller than
         the total number of pressures we want to compute."""
         self.report(
             'checking if need to run more cycle. Total number of runs {}, current run {}'
-                .format(self.ctx.number_runs, self.ctx.current_run_counter))
+            .format(self.ctx.number_runs, self.ctx.current_run_counter))
         return self.ctx.current_run_counter < self.ctx.number_runs
 
     def run_first_gcmc(self):
@@ -197,19 +195,15 @@ class ResubmitGCMC(WorkChain):
         self.ctx.raspa_parameters_gcmc_0['GeneralSettings'][
             'ExternalPressure'] = self.ctx.pressure
 
-        parameters = ParameterData(dict=self.ctx.raspa_parameters_gcmc_0).store()
+        parameters = ParameterData(
+            dict=self.ctx.raspa_parameters_gcmc_0).store()
         # Create the input dictionary
         inputs = {
-            'code':
-            self.inputs.raspa_code,
-            'structure':
-            self.ctx.structure,
-            'parameters':
-            parameters,
-            '_options':
-            self.inputs._raspa_options,
-            '_label':
-            "run_first_loading_raspa",
+            'code': self.inputs.raspa_code,
+            'structure': self.ctx.structure,
+            'parameters': parameters,
+            '_options': self.inputs._raspa_options,
+            '_label': "run_first_loading_raspa",
         }
         # Check if there are pocket blocks to be loaded
         try:
@@ -223,9 +217,8 @@ class ResubmitGCMC(WorkChain):
         # Create the calculation process and launch it
         running = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.current_run += 1
-        self.report(
-            "pk: {} | Running RASPA  for the {} time".
-            format(running.pid,  self.ctx.current_run))
+        self.report("pk: {} | Running RASPA  for the {} time".format(
+            running.pid, self.ctx.current_run))
 
         return ToContext(raspa_loading=Outputs(running))
 
@@ -239,16 +232,11 @@ class ResubmitGCMC(WorkChain):
         parameters = ParameterData(dict=self.ctx.raspa_parameters_gcmc).store()
         # Create the input dictionary
         inputs = {
-            'code':
-            self.inputs.raspa_code,
-            'structure':
-            self.ctx.structure,
-            'parameters':
-            parameters,
-            '_options':
-            self.inputs._raspa_options,
-            '_label':
-            "run_loading_raspa",
+            'code': self.inputs.raspa_code,
+            'structure': self.ctx.structure,
+            'parameters': parameters,
+            '_options': self.inputs._raspa_options,
+            '_label': "run_loading_raspa",
         }
         # Check if there are pocket blocks to be loaded
         try:
@@ -262,9 +250,8 @@ class ResubmitGCMC(WorkChain):
         # Create the calculation process and launch it
         running = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.current_run += 1
-        self.report(
-            "pk: {} | Running RASPA  for the {} time".
-            format(running.pid, self.ctx.current_run))
+        self.report("pk: {} | Running RASPA  for the {} time".format(
+            running.pid, self.ctx.current_run))
 
         return ToContext(raspa_loading=Outputs(running))
 
@@ -293,10 +280,6 @@ class ResubmitGCMC(WorkChain):
             "output_parameters"].dict.ads_ads_vdw_energy_average
         ads_ads_vdw_energy_dev = self.ctx.raspa_loading[
             "output_parameters"].dict.ads_ads_vdw_energy_dev
-        adsorbate_density_average = self.ctx.raspa_loading[
-            "output_parameters"].dict.adsorbate_density_average
-        absorbate_density_dev = self.ctx.raspa_loading[
-            "output_parameters"].dict.absorbate_density_dev
         host_ads_coulomb_energy_average = self.ctx.raspa_loading[
             "output_parameters"].dict.host_ads_coulomb_energy_average
         host_ads_coulomb_energy_dev = self.ctx.raspa_loading[
@@ -315,13 +298,19 @@ class ResubmitGCMC(WorkChain):
             "output_parameters"].dict.total_energy_dev
 
         rdfs = self.ctx.raspa_loading["output_parameters"].dict.rdfs
-        mc_statistics = self.ctx.raspa_loading['output_parameters'].dict.mc_move_statistics
-        raspa_warnings = self.ctx.raspa_loading['output_parameters'].dict.raspa_warnings
-        tail_correction_energy_average = self.ctx.raspa_loading['output_parameters'].dict.tail_correction_energy_average
-        tail_correction_energy_dev = self.ctx.raspa_loading['output_parameters'].dict.tail_correction_energy_dev
+        mc_statistics = self.ctx.raspa_loading[
+            'output_parameters'].dict.mc_move_statistics
+        raspa_warnings = self.ctx.raspa_loading[
+            'output_parameters'].dict.raspa_warnings
+        tail_correction_energy_average = self.ctx.raspa_loading[
+            'output_parameters'].dict.tail_correction_energy_average
+        tail_correction_energy_dev = self.ctx.raspa_loading[
+            'output_parameters'].dict.tail_correction_energy_dev
 
-        self.ctx.tail_correction_energy_average[self.ctx.current_run] = tail_correction_energy_average
-        self.ctx.tail_correction_energy_dev[self.ctx.current_run] = tail_correction_energy_dev
+        self.ctx.tail_correction_energy_average[
+            self.ctx.current_run] = tail_correction_energy_average
+        self.ctx.tail_correction_energy_dev[
+            self.ctx.current_run] = tail_correction_energy_dev
         self.ctx.raspa_warnings[self.ctx.current_run] = raspa_warnings
         self.ctx.loading[self.ctx.current_run] = loading_average
         self.ctx.mc_statistics[self.ctx.current_run] = mc_statistics
@@ -345,10 +334,6 @@ class ResubmitGCMC(WorkChain):
             self.ctx.current_run] = ads_ads_vdw_energy_average
         self.ctx.ads_ads_vdw_energy_dev[
             self.ctx.current_run] = ads_ads_vdw_energy_dev
-        self.ctx.adsorbate_density_average[
-            self.ctx.current_run] = adsorbate_density_average
-        self.ctx.absorbate_density_dev[
-            self.ctx.current_run] = absorbate_density_dev
         self.ctx.host_ads_coulomb_energy_average[
             self.ctx.current_run] = host_ads_coulomb_energy_average
         self.ctx.host_ads_coulomb_energy_dev[
@@ -446,6 +431,7 @@ class ResubmitGCMC(WorkChain):
 
         self.out("results", ParameterData(dict=result_dict).store())
         self.out('blocking_spheres', self.ctx.zeopp['block'])
-        self.report("Workchain <{}> completed successfully".format(self.calc.pk))
+        self.report("Workchain <{}> completed successfully".format(
+            self.calc.pk))
 
         return
