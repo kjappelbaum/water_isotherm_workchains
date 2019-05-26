@@ -19,12 +19,12 @@ ParameterData = DataFactory('parameter')
 CifData = DataFactory('cif')
 SinglefileData = DataFactory('singlefile')
 
-structure = CifData(file=os.getcwd() + '/Cu-MOF-74.cif')
+structure = CifData(file=os.getcwd() + 'uio-66.cif')
 probe_radius = 1.525
 atomic_radii = SinglefileData(file=os.path.abspath(
     "/home/kevin/Documents/uni/EPFL/master_thesis/cof_ml_work/featurization/zeopp.rad"
 ))  #
-number_runs = 10  # how often do we repeat the short GCMC?
+number_runs = 2  # how often do we repeat the short GCMC?
 pressure = 1000  # in Pa
 
 
@@ -34,7 +34,7 @@ zr_options = {
         "num_machines": 1,
         "tot_num_mpiprocs": 1,
     },
-    "max_wallclock_seconds": 1 * 60 * 60,
+    "max_wallclock_seconds": 7 * 60 * 60,
     "withmpi": False,
 }
 
@@ -42,14 +42,14 @@ raspa_parameters_gcmc = ParameterData(
     dict={
         "GeneralSettings": {
             "SimulationType": "MonteCarlo",
-            "NumberOfCycles": 1000,
+            "NumberOfCycles": 100,
             "NumberOfInitializationCycles": 0,
             "ChargeMethod": "Ewald",
             "CutOff": 12.0,
             "Forcefield": "LSMO_UFF-TraPPE",
             'RemoveAtomNumberCodeFromLabel': 'yes',
             "ComputeRDF": "yes",
-            "WriteRDFEvery": 1000,
+            "WriteRDFEvery": 100,
             "EwaldPrecision": 1e-6,
             "Framework": 0,
             "UnitCells": "1 1 1",
@@ -71,12 +71,12 @@ raspa_parameters_gcmc_0 = ParameterData(
         "GeneralSettings": {
             "SimulationType": "MonteCarlo",
             "NumberOfCycles": 2000,
-            "NumberOfInitializationCycles": 10000,
+            "NumberOfInitializationCycles": 1000,
             "ChargeMethod": "Ewald",
             "CutOff": 12.0,
             'RemoveAtomNumberCodeFromLabel': 'yes',
             "ComputeRDF": "yes",
-            "WriteRDFEvery": 1000,
+            "WriteRDFEvery": 2000,
             "Forcefield": "LSMO_UFF-TraPPE",
             "EwaldPrecision": 1e-6,
             "Framework": 0,
@@ -96,9 +96,9 @@ raspa_parameters_gcmc_0 = ParameterData(
     })
 
 
-zeopp_code = test_and_get_code('zeopp@deneb',
+zeopp_code = test_and_get_code('zeopp@fidis',
                                expected_code_type='zeopp.network')
-raspa_code = test_and_get_code('raspa@deneb', expected_code_type='raspa')
+raspa_code = test_and_get_code('raspa2@fidis', expected_code_type='raspa')
 
 submit(
     ResubmitGCMC,
@@ -112,7 +112,6 @@ submit(
     raspa_code=raspa_code,
     raspa_parameters=raspa_parameters_gcmc,
     raspa_parameters_gcmc_0=raspa_parameters_gcmc_0,
-    raspa_parameters_md=raspa_parameters_md,
     _raspa_options=zr_options,
     _usecharges=True,
     _label='Isotherm',
