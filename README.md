@@ -30,6 +30,10 @@ time in inserting new particles.
 2. pip install the workflows with `pip install git+https://github.com/kjappelbaum/water_isotherm_workchains`   
 3. restart the daemon `verdi daemon restart`
 
+to use the examples it might be easier to 
+1. `git clone` the repository
+2. `cd water_isotherm workchains & pip install .`
+
 ## Settings for the study 
 
 
