@@ -10,7 +10,6 @@ __status__ = 'Dev'
 from aiida.orm import CalculationFactory, DataFactory
 from aiida.orm.code import Code
 from aiida.orm.data.base import Float
-from aiida.work import workfunction as wf
 from aiida.work.run import submit
 from aiida.work.workchain import WorkChain, ToContext, while_, Outputs
 from aiida_raspa.workflows import RaspaConvergeWorkChain
@@ -91,7 +90,7 @@ class ResubmitGCMC(WorkChain):
         self.ctx.loading_dev = {}
         self.ctx.enthalpy_of_adsorption = {}
         self.ctx.enthalpy_of_adsorption_dev = {}
-        self.ctx_rdfs = {}
+        self.ctx.rdfs = {}
         self.ctx.raspa_warnings = {}
         self.ctx.mc_statistics = {}
         self.ctx.tail_correction_energy_average = {}
@@ -320,7 +319,7 @@ class ResubmitGCMC(WorkChain):
             self.ctx.current_run] = enthalpy_of_adsorption
         self.ctx.enthalpy_of_adsorption_dev[
             self.ctx.current_run] = enthalpy_of_adsorption_dev
-        self.ctx_rdfs = rdfs
+        self.ctx.rdfs = rdfs
 
         self.ctx.ads_ads_coulomb_energy_average[
             self.ctx.current_run] = ads_ads_coulomb_energy_average
@@ -369,6 +368,7 @@ class ResubmitGCMC(WorkChain):
             result_dict[
                 'number_blocking_spheres'] = self.ctx.number_blocking_spheres
         except AttributeError:
+            self.report('Problems with returning the results dictionary for the zeopp part.')
             pass
 
         # Raspa loading
@@ -386,8 +386,11 @@ class ResubmitGCMC(WorkChain):
                 'conversion_factor_molec_uc_to_mol_kg'] = self.ctx.raspa_loading[
                     "component_0"].get_dict(
                     )['conversion_factor_molec_uc_to_mol_kg']
-            result_dict['rdf_hw_hw'] = self.ctx.rdf_hw_hw
-            result_dict['rdf_hw_framework'] = self.ctx_rdf_hw_framework
+
+            result_dict['rdfs'] = self.ctx.rdfs
+            result_dict['mc_statistics'] = self.ctx.mc_statistics
+            result_dict['warnings'] = self.ctx.raspa_warnings
+
             result_dict['loading_averages'] = self.ctx.loading
             result_dict['loading_dev'] = self.ctx.loading_dev
             result_dict[
@@ -407,10 +410,7 @@ class ResubmitGCMC(WorkChain):
                 'ads_ads_vdw_energy_average'] = self.ctx.ads_ads_vdw_energy_average
             result_dict[
                 'ads_ads_vdw_energy_dev'] = self.ctx.ads_ads_vdw_energy_dev
-            result_dict[
-                'adsorbate_density_average'] = self.ctx.adsorbate_density_average
-            result_dict[
-                'absorbate_density_dev'] = self.ctx.absorbate_density_dev
+
             result_dict[
                 'host_ads_coulomb_energy_average'] = self.ctx.host_ads_coulomb_energy_average
             result_dict[
@@ -427,6 +427,7 @@ class ResubmitGCMC(WorkChain):
             result_dict['total_energy_dev'] = self.ctx.total_energy_dev
 
         except AttributeError:
+            self.report('Problems with returning the results dictionary for the RASPA part.')
             pass
 
         self.out("results", ParameterData(dict=result_dict).store())
