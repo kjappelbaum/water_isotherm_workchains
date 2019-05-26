@@ -70,8 +70,9 @@ class GCMCMD(WorkChain):
             cls.init,
             cls.run_zeopp,  # computes volpo and block pockets
             cls.init_raspa_calc,  # assign HeliumVoidFraction=POAV
-            cls.run_first_gcmc,   # first GCMC is longer and with intialization
-            cls.parse_loading_raspa,  # then move to loop in which one cycles between MD and MC
+            cls.run_first_gcmc,  # first GCMC is longer and with intialization
+            cls.
+            parse_loading_raspa,  # then move to loop in which one cycles between MD and MC
             while_(cls.should_run_loading_raspa)(
                 cls.run_md,
                 cls.parse_loading_raspa,
@@ -202,7 +203,10 @@ class GCMCMD(WorkChain):
     def should_run_loading_raspa(self):
         """We run another raspa calculation only if the current iteration is smaller than
         the total number of pressures we want to compute."""
-        return self.ctx.current_run_counter < len(self.ctx.number_runs)
+        self.report(
+            'checking if need to run more cycle. Total number of runs {}, current run {}'
+            .format(self.ctx.number_runs, self.ctx.current_run_counter))
+        return self.ctx.current_run_counter < self.ctx.number_runs
 
     def run_first_gcmc(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
@@ -247,8 +251,7 @@ class GCMCMD(WorkChain):
         # would work otherwise (i.e. if there is no pressure in GeneralSettings
 
         self.ctx.raspa_parameters_md['GeneralSettings']["Ensemble"] = 'NVT'
-        self.ctx.raspa_parameters_md['GeneralSettings'][
-            'ExternalPressure'] = 0
+        self.ctx.raspa_parameters_md['GeneralSettings']['ExternalPressure'] = 0
 
         parameters = ParameterData(dict=self.ctx.raspa_parameters_md).store()
         # Create the input dictionary
@@ -307,7 +310,6 @@ class GCMCMD(WorkChain):
 
         # Create the calculation process and launch it
         running = submit(RaspaConvergeWorkChain, **inputs)
-        self.ctx.current_run_counter += 1
         self.ctx.current_run = str('gcmc' + self.ctx.current_run_counter)
         self.report(
             "pk: {} | Running RASPA for the pressure {} bar for the {} time".
@@ -361,14 +363,20 @@ class GCMCMD(WorkChain):
             "output_parameters"].dict.total_energy_average
         total_energy_dev = self.ctx.raspa_loading[
             "output_parameters"].dict.total_energy_dev
-        mc_statistics = self.ctx.raspa_loading['output_parameters'].dict.mc_move_statistics
+        mc_statistics = self.ctx.raspa_loading[
+            'output_parameters'].dict.mc_move_statistics
         rdfs = self.ctx.raspa_loading["output_parameters"].dict.rdfs
-        raspa_warnings = self.ctx.raspa_loading['output_parameters'].dict.raspa_warnings
-        tail_correction_energy_average = self.ctx.raspa_loading['output_parameters'].dict.tail_correction_energy_average
-        tail_correction_energy_dev = self.ctx.raspa_loading['output_parameters'].dict.tail_correction_energy_dev
+        raspa_warnings = self.ctx.raspa_loading[
+            'output_parameters'].dict.raspa_warnings
+        tail_correction_energy_average = self.ctx.raspa_loading[
+            'output_parameters'].dict.tail_correction_energy_average
+        tail_correction_energy_dev = self.ctx.raspa_loading[
+            'output_parameters'].dict.tail_correction_energy_dev
 
-        self.ctx.tail_correction_energy_average[self.ctx.current_run] = tail_correction_energy_average
-        self.ctx.tail_correction_energy_dev[self.ctx.current_run] = tail_correction_energy_dev
+        self.ctx.tail_correction_energy_average[
+            self.ctx.current_run] = tail_correction_energy_average
+        self.ctx.tail_correction_energy_dev[
+            self.ctx.current_run] = tail_correction_energy_dev
         self.ctx.raspa_warnings[self.ctx.current_run] = raspa_warnings
         self.ctx.loading[self.ctx.current_run] = loading_average
         self.ctx.mc_statistics[self.ctx.current_run] = mc_statistics
@@ -491,6 +499,7 @@ class GCMCMD(WorkChain):
 
         self.out("results", ParameterData(dict=result_dict).store())
         self.out('blocking_spheres', self.ctx.zeopp['block'])
-        self.report("Workchain <{}> completed successfully".format(self.calc.pk))
+        self.report("Workchain <{}> completed successfully".format(
+            self.calc.pk))
 
         return

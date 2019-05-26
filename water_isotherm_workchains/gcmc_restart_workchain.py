@@ -187,7 +187,10 @@ class ResubmitGCMC(WorkChain):
     def should_run_loading_raspa(self):
         """We run another raspa calculation only if the current iteration is smaller than
         the total number of pressures we want to compute."""
-        return self.ctx.current_run < len(self.ctx.number_runs)
+        self.report(
+            'checking if need to run more cycle. Total number of runs {}, current run {}'
+                .format(self.ctx.number_runs, self.ctx.current_run_counter))
+        return self.ctx.current_run_counter < self.ctx.number_runs
 
     def run_first_gcmc(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
