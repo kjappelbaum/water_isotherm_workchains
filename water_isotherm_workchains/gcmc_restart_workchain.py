@@ -34,7 +34,7 @@ class ResubmitGCMC(WorkChain):
 
         # structure, adsorbant, pressures
         spec.input('structure', valid_type=CifData)
-        spec.input("probe_radius", valid_type=Float)
+        spec.input("zeopp_probe_radius", valid_type=Float)
         spec.input("pressure", valid_type=ArrayData)
         spec.input("number_runs", valid_type=Float)
 
@@ -44,7 +44,6 @@ class ResubmitGCMC(WorkChain):
                    valid_type=dict,
                    default=None,
                    required=False)
-        spec.input("zeopp_probe_radius", valid_type=Float)
         spec.input("zeopp_atomic_radii",
                    valid_type=SinglefileData,
                    default=None,
