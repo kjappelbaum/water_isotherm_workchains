@@ -10,7 +10,6 @@ __status__ = 'Dev'
 from aiida.orm import CalculationFactory, DataFactory
 from aiida.orm.code import Code
 from aiida.orm.data.base import Float
-from aiida.work import workfunction as wf
 from aiida.work.run import submit
 from aiida.work.workchain import WorkChain, ToContext, while_, Outputs
 from aiida_raspa.workflows import RaspaConvergeWorkChain
@@ -356,9 +355,10 @@ class GCMCMD(WorkChain):
             "output_parameters"].dict.total_energy_average
         total_energy_dev = self.ctx.raspa_loading[
             "output_parameters"].dict.total_energy_dev
+
+        rdfs = self.ctx.raspa_loading["output_parameters"].dict.rdfs
         mc_statistics = self.ctx.raspa_loading[
             'output_parameters'].dict.mc_move_statistics
-        rdfs = self.ctx.raspa_loading["output_parameters"].dict.rdfs
         raspa_warnings = self.ctx.raspa_loading[
             'output_parameters'].dict.warnings
         tail_correction_energy_average = self.ctx.raspa_loading[
@@ -374,11 +374,13 @@ class GCMCMD(WorkChain):
         self.ctx.raspa_warnings[curr_run] = raspa_warnings
         self.ctx.loading[curr_run] = loading_average
         self.ctx.mc_statistics[curr_run] = mc_statistics
+
         self.ctx.loading_dev[curr_run] = loading_dev
         self.ctx.enthalpy_of_adsorption[curr_run] = enthalpy_of_adsorption
         self.ctx.enthalpy_of_adsorption_dev[
             curr_run] = enthalpy_of_adsorption_dev
         self.ctx.rdfs[curr_run] = rdfs
+
         self.ctx.ads_ads_coulomb_energy_average[
             curr_run] = ads_ads_coulomb_energy_average
         self.ctx.ads_ads_coulomb_energy_dev[
@@ -422,12 +424,10 @@ class GCMCMD(WorkChain):
             result_dict[
                 'number_blocking_spheres'] = self.ctx.number_blocking_spheres
         except AttributeError:
-            self.report(
-                'No blocked pockets found.'
-            )
+            self.report('No blocked pockets found.')
             pass
 
-        # Raspa loading
+        # RASPA loading
         try:
             result_dict['pressure_pa'] = self.ctx.pressure
             result_dict[
@@ -446,6 +446,7 @@ class GCMCMD(WorkChain):
             result_dict['rdfs'] = self.ctx.rdfs
             result_dict['mc_statistics'] = self.ctx.mc_statistics
             result_dict['warnings'] = self.ctx.raspa_warnings
+
             result_dict['loading_averages'] = self.ctx.loading
             result_dict['loading_dev'] = self.ctx.loading_dev
             result_dict[
@@ -465,6 +466,7 @@ class GCMCMD(WorkChain):
                 'ads_ads_vdw_energy_average'] = self.ctx.ads_ads_vdw_energy_average
             result_dict[
                 'ads_ads_vdw_energy_dev'] = self.ctx.ads_ads_vdw_energy_dev
+
             result_dict[
                 'host_ads_coulomb_energy_average'] = self.ctx.host_ads_coulomb_energy_average
             result_dict[
