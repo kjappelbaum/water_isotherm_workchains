@@ -121,7 +121,7 @@ class GCMCMD2(WorkChain):
         self.ctx.total_energy_dev = {}
         self.ctx.tail_correction_energy_average = {}
         self.ctx.tail_correction_energy_dev = {}
-
+        self.ctx.number_cycles = {}
         self.ctx.raspa_parameters_gcmc = self.inputs.raspa_parameters_gcmc.get_dict(
         )
         self.ctx.raspa_parameters_gcmc_0 = self.inputs.raspa_parameters_gcmc_0.get_dict(
@@ -278,6 +278,7 @@ class GCMCMD2(WorkChain):
         running = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.current_run_counter += 1
         self.ctx.current_run = str('md' + str(self.ctx.current_run_counter))
+        self.ctx.number_cycles[self.ctx.current_run] = num_cycles
         self.report("pk: {} | Running RASPA MD for the {} time".format(
             running.pid, self.ctx.current_run_counter))
 
@@ -494,7 +495,7 @@ class GCMCMD2(WorkChain):
                 'host_ads_vdw_energy_dev'] = self.ctx.host_ads_vdw_energy_dev
             result_dict['total_energy_average'] = self.ctx.total_energy_average
             result_dict['total_energy_dev'] = self.ctx.total_energy_dev
-
+            result_dict['number_md_cycles'] = self.ctx.number_cycles 
         except AttributeError:
             self.report(
                 'Problems with returning the results dictionary for the RASPA part.'
