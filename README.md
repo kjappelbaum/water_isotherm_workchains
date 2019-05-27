@@ -39,6 +39,10 @@ to use the examples it might be easier to
 1. `git clone` the repository
 2. `cd water_isotherm workchains & pip install .`
 
+## Known issues 
+* The output out the workchain is comparatively large as we save all RDFs for all simulations 
+  this can lead to problems if you have limited memory and want to safe into the database. 
+  
 ## Settings for the study 
 
 
