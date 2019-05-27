@@ -46,6 +46,9 @@ to use the examples it might be easier to
   
 ## Settings for the study 
 
+The folder `files_4_study` contains the runscript, the structures with charges and the
+force field definitions. 
+
 
 | Value                     | Setting                   |
 | --------------------------| --------------------------|
