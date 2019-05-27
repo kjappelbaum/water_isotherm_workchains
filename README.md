@@ -41,17 +41,19 @@ to use the examples it might be easier to
 
 ## Known issues 
 * The output out the workchain is comparatively large as we save all RDFs for all simulations 
-  this can lead to problems if you have limited memory and want to safe into the database. 
+  this can lead to problems if you have limited memory and want to safe into the database (i.e. in a 
+  Virtual Quantum Mobile machine we had issues whereas we had no problems in a 'real' machine)
   
 ## Settings for the study 
 
 
 | Value                     | Setting                   |
 | --------------------------| --------------------------|
+| systems                   | al-fumarate, mil-160, uio-66, mil-125-nh2 |
 | probe radius / A          | 3.1589/2.                 |
 | force field               | UFF with all interactions |
 | water model               | TIP4P 2005                | 
-| partial charge derivation method | DDEC               | 
+| partial charge derivation method | DDEC / EqEq (for MIL-125-NH2) | 
 | number repeats            | 30                        | 
 | number initialization cycles | 20 000                 | 
 | cycles first GCMC         | 5 000                     |
@@ -59,7 +61,10 @@ to use the examples it might be easier to
 | temperature GCMC / K      | 298.0                     | 
 | temperature MD  / K       | 298.0                     | 
 | timestep MD / fs          | 0.0005                    |
-| cycles MD                 | 10 000                    |
+| cycles MD                 | 15 000                    |
 | pressures /  Pa           | 00.0001E5, 00.001E5, 00.002E5, 00.004E5, 00.006E5, 00.008E5, 00.011E5, 00.014E5, 00.016E5, 00.018E5, 00.021E5, 00.023E5, 00.026E5, 00.0298E5, 00.036E5, 00.04E5|
 | cutoff / A                | 13                        |
 | tail-correction           | yes, since RASPA uses switching potential there is no problem in MD |
+
+In total this means we run 5 000 * 20 + 1 000 * 30 * 20 = 700 000 MC steps. 
+And we run 30 * 0.0005 fs * 15 000 * 20 = 4.5 ps of MD trajectory.
