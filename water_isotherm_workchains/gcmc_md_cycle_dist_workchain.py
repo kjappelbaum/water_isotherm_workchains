@@ -37,9 +37,9 @@ class GCMCMD2(WorkChain):
         # structure, adsorbant, pressures
         spec.input('structure', valid_type=CifData)
         spec.input("pressure", valid_type=Float, required=True)
-        spec.input("number_runs", valid_type=Float, default=1)
-        spec.input("number_cycles_lower", valid_type=Float, default=1)
-        spec.input("number_cycles_upper", valid_type=Float, default=100000)
+        spec.input("number_runs", valid_type=Float, default=Float(1))
+        spec.input("number_cycles_lower", valid_type=Float, default=Float(1))
+        spec.input("number_cycles_upper", valid_type=Float, default=Float(100000))
 
         # zeopp
         spec.input('zeopp_code', valid_type=Code)
@@ -249,6 +249,7 @@ class GCMCMD2(WorkChain):
         self.ctx.raspa_parameters_md['GeneralSettings'][
             "NumberOfInitializationCycles"] = 0
 
+        # chose random number of cycles for reversibility
         num_cycles = randint(self.ctx.cycles_lower, self.ctx.cycles_upper)
         self.ctx.raspa_parameters_md['GeneralSettings'][
             "NumberOfCycles"] = num_cycles
@@ -495,7 +496,7 @@ class GCMCMD2(WorkChain):
                 'host_ads_vdw_energy_dev'] = self.ctx.host_ads_vdw_energy_dev
             result_dict['total_energy_average'] = self.ctx.total_energy_average
             result_dict['total_energy_dev'] = self.ctx.total_energy_dev
-            result_dict['number_md_cycles'] = self.ctx.number_cycles 
+            result_dict['number_md_cycles'] = self.ctx.number_cycles
         except AttributeError:
             self.report(
                 'Problems with returning the results dictionary for the RASPA part.'
