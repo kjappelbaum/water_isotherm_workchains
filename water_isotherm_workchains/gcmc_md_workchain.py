@@ -423,7 +423,7 @@ class GCMCMD(WorkChain):
                 'number_blocking_spheres'] = self.ctx.number_blocking_spheres
         except AttributeError:
             self.report(
-                'Problems with returning the results dictionary for the zeopp part.'
+                'No blocked pockets found.'
             )
             pass
 

@@ -25,7 +25,7 @@ atomic_radii = SinglefileData(file=os.path.abspath(
     "../test_files/zeopp.rad"
 ))
 number_runs = 2  # how often do we repeat the short GCMC?
-pressure = 1000  # in Pa
+pressure = 3000  # in Pa
 
 
 # option for zeo++ and raspa
