@@ -25,7 +25,7 @@ pressures = [
      00.023e5]
 
 
-cifs = os.path.abspath(os.path.join('..', 'test_files', 'uio-66.cif'))
+cifs = [os.path.abspath(os.path.join('..', 'test_files', 'uio-66.cif'))]
 probe_radius = 3.1589 / 2.
 atomic_radii = SinglefileData(
     file=os.path.abspath("../test_files/zeopp.rad"))  #
