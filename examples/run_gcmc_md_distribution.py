@@ -22,17 +22,14 @@ CifData = DataFactory('cif')
 SinglefileData = DataFactory('singlefile')
 
 pressures = [
-    00.0001e5, 00.001e5, 00.002e5, 00.004e5, 00.006e5, 00.008e5, 00.011e5,
-    00.014e5, 00.016e5, 00.018e5, 00.021e5, 00.023e5, 00.026e5, 00.0298e5,
-    00.036e5, 00.04e5
-]
+     00.023e5]
 
-structure_dir = ''
-cifs = glob(os.path.join(structure_dir, '*.cif'))
+
+cifs = os.path.abspath(os.path.join('..', 'test_files', 'uio-66.cif'))
 probe_radius = 3.1589 / 2.
 atomic_radii = SinglefileData(
     file=os.path.abspath("../test_files/zeopp.rad"))  #
-number_runs = 30  # how often do we repeat the GCMC/MD cycle?
+number_runs = 2  # how often do we repeat the GCMC/MD cycle?
 
 # option for zeo++ and RASPA
 zr_options = {

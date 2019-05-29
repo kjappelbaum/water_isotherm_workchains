@@ -27,7 +27,7 @@ pressures = [
     00.036e5, 00.04e5
 ]
 
-structure_dir = ''
+structure_dir = os.path.abspath("structures")
 cifs = glob(os.path.join(structure_dir, '*.cif'))
 probe_radius = 3.1589 / 2.
 atomic_radii = SinglefileData(
@@ -52,7 +52,7 @@ raspa_parameters_gcmc = ParameterData(
             "NumberOfInitializationCycles": 0,
             "ChargeMethod": "Ewald",
             "CutOff": 13.0,
-            "Forcefield": "UFF-TIP4P-TC",
+            "Forcefield": "UFF-TIP4P",
             'RemoveAtomNumberCodeFromLabel': 'yes',
             "ComputeRDF": "yes",
             "WriteRDFEvery": 1000,
@@ -83,7 +83,7 @@ raspa_parameters_gcmc_0 = ParameterData(
             'RemoveAtomNumberCodeFromLabel': 'yes',
             "ComputeRDF": "yes",
             "WriteRDFEvery": 2000,
-            "Forcefield": "UFF-TIP4P-TC",
+            "Forcefield": "UFF-TIP4P",
             "EwaldPrecision": 1e-6,
             "Framework": 0,
             "UnitCells": "1 1 1",
@@ -112,7 +112,7 @@ raspa_parameters_md = ParameterData(
             'RemoveAtomNumberCodeFromLabel': 'yes',
             "ComputeRDF": "yes",
             "WriteRDFEvery": 15000,
-            "Forcefield": "UFF-TIP4P-TC",
+            "Forcefield": "UFF-TIP4P",
             "EwaldPrecision": 1e-6,
             "Framework": 0,
             "UnitCells": "1 1 1",
