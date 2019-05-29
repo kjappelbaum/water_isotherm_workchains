@@ -157,4 +157,4 @@ for cif in cifs:
             _usecharges=True,
             _label='gcmc_md_test',
         )
-        time.sleep(10)
+        time.sleep(5)

@@ -7,6 +7,7 @@ __email__ = 'kevin.jablonka@epfl.ch'
 __version__ = '0.1.0'
 __status__ = 'Dev'
 
+import time
 import os
 from glob import glob
 from aiida.common.example_helpers import test_and_get_code
@@ -124,4 +125,4 @@ for cif in cifs:
             _usecharges=True,
             _label='gcmc_resubmit_test',
         )
-        time.sleep
+        time.sleep(5)
