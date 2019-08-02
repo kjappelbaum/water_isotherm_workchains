@@ -26,7 +26,7 @@ class ConvergeLoadingWorkchain(WorkChain):
     system configuration. After that, we do not perfom initialization but simply
     restart from the previous configuration.
 
-    For now, support for only one component. 
+    For now, support for only one component.
 
     Before performing a GCMC it also runs zeo++ to determine the blocked pockets.
     """
@@ -148,8 +148,10 @@ class ConvergeLoadingWorkchain(WorkChain):
             "code": self.inputs.zeopp_code,
             "structure": self.inputs.structure,
             "parameters": NetworkParameters(dict=params).store(),
+             'metadata'  :{
             "_options": self.inputs._zeopp_options,
             "_label": "ZeoppVolpoBlock",
+            }
         }
 
         # Use default zeopp atomic radii only if a .rad file is not specified
@@ -160,11 +162,11 @@ class ConvergeLoadingWorkchain(WorkChain):
             self.report("Zeopp will use default atomic radii")
 
         # Create the calculation process and launch it
-        running = submit(ZeoppCalculation.process(), **inputs)
+        res = self.submit(ZeoppCalculation.process(), **inputs)
         self.report(
             "pk: {} | Running zeo++ volpo and block calculations".format(running.pid)
         )
-        return ToContext(zeopp=Outputs(running))
+        return ToContext(zeopp=res)
 
     def init_raspa_calc(self):
         """Parse the output of Zeo++ and instruct the input for Raspa. """
@@ -214,8 +216,10 @@ class ConvergeLoadingWorkchain(WorkChain):
             "code": self.inputs.raspa_code,
             "structure": self.ctx.structure,
             "parameters": parameters,
+            'metadata'  :{
             "_options": self.inputs._raspa_options,
             "_label": "run_first_loading_raspa",
+            }
         }
         # Check if there are pocket blocks to be loaded
         try:
@@ -227,7 +231,7 @@ class ConvergeLoadingWorkchain(WorkChain):
             inputs["retrieved_parent_folder"] = self.ctx.restart_raspa_calc
 
         # Create the calculation process and launch it
-        running = submit(RaspaConvergeWorkChain, **inputs)
+        res = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.counter += 1
         self.ctx.cycles += self.ctx.raspa_parameters_gcmc["GeneralSettings"][
             "NumberOfCycles"
@@ -238,7 +242,7 @@ class ConvergeLoadingWorkchain(WorkChain):
             )
         )
 
-        return ToContext(raspa_loading=Outputs(running))
+        return ToContext(raspa_loading=res)
 
     def run_loading_raspa(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
@@ -255,8 +259,10 @@ class ConvergeLoadingWorkchain(WorkChain):
             "code": self.inputs.raspa_code,
             "structure": self.ctx.structure,
             "parameters": parameters,
+             'metadata'  :{
             "_options": self.inputs._raspa_options,
             "_label": "run_loading_raspa",
+            }
         }
         # Check if there are pocket blocks to be loaded
         try:
@@ -268,7 +274,7 @@ class ConvergeLoadingWorkchain(WorkChain):
             inputs["retrieved_parent_folder"] = self.ctx.restart_raspa_calc
 
         # Create the calculation process and launch it
-        running = submit(RaspaConvergeWorkChain, **inputs)
+        res = submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.counter += 1
         self.ctx.cycles += self.ctx.raspa_parameters_gcmc["GeneralSettings"][
             "NumberOfCycles"
@@ -279,7 +285,7 @@ class ConvergeLoadingWorkchain(WorkChain):
             )
         )
 
-        return ToContext(raspa_loading=Outputs(running))
+        return ToContext(raspa_loading=res)
 
     def parse_loading_raspa(self):
         """Extract the pressure and loading average of the last completed raspa calculation"""
