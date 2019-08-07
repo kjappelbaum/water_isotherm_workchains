@@ -1,13 +1,21 @@
 from __future__ import absolute_import
 import os
 import six
+from .utils.utils import multiply_unit_cell
 from copy import deepcopy
-
-from aiida.common import AttributeDict
+from aiida.common import AttributeDict, DefaultsDict
 from aiida.plugins import CalculationFactory, DataFactory
 from aiida.orm import Code, Dict, Float, Int, List, Str, load_node
 from aiida.engine import submit
 from aiida.engine import ToContext, WorkChain, workfunction, if_, while_, append_
+
+CifData = DataFactory("cif")
+ParameterData = DataFactory("dict")
+SinglefileData = DataFactory("singlefile")
+FolderData = DataFactory("folder")
+RaspaCalculation = CalculationFactory("raspa")
+ZeoppCalculation = CalculationFactory("zeopp.network")
+NetworkParameters = DataFactory("zeopp.parameters")
 
 
 class ConvergeLoadingWorkchain(WorkChain):
@@ -17,16 +25,20 @@ class ConvergeLoadingWorkchain(WorkChain):
     number of cycles is above a desired treshold.
 
     Philosophy here is to have a lot of short GCMC runs, the current architecture
-    assumes that calculation wont't convergee in the first simulation.
+    assumes that calculation wont't converge in the first simulation.
     This is to be completely sure that one does not run into walltime issues and
     that one also has fine-grained access to the statistics in the results dictionary
-    and can perform better averaging.
+    and can perform better averaging. This is to get a compromise between efficiency,
+    and being sure that everything is super correct.
 
     Only the first simulation will have simulation cycles to get to a reasonable
     system configuration. After that, we do not perfom initialization but simply
     restart from the previous configuration.
 
-    For now, support for only one component.
+    Will not reuse block files as the radius for the zeo++ is model dependent,
+    at least when using the sigma/2 convention.
+
+    Mutlicomponent code copied from Pezhman Zarabadi-Poor (https://github.com/pzarabadip/aiida-lsmo-workflows/blob/gemc-wc/examples/run_isotherm_1comp_hkust1.py).
 
     Before performing a GCMC it also runs zeo++ to determine the blocked pockets.
     """
@@ -43,7 +55,9 @@ class ConvergeLoadingWorkchain(WorkChain):
 
         # zeopp
         spec.input("zeopp_code", valid_type=Code)
-        spec.input("_zeopp_options", valid_type=dict, default=None, required=False)
+        spec.input(
+            "zeopp_options", valid_type=dict, default=None, required=False, non_db=True
+        )
         spec.input(
             "zeopp_atomic_radii",
             valid_type=SinglefileData,
@@ -53,19 +67,32 @@ class ConvergeLoadingWorkchain(WorkChain):
 
         # raspa
         spec.input("raspa_code", valid_type=Code)
-        spec.input("raspa_parameters_gcmc", valid_type=ParameterData)
-        spec.input("min_cycles", valid_type=Int, default=Int(10000))
-        spec.input("percent_change", valid_type=Float, default=Float(2.0))
+        spec.input_namespace(
+            "raspa_comp", valid_type=dict, required=False, dynamic=True
+        )
+        spec.input(
+            "raspa_parameters", valid_type=ParameterData
+        )  # RASPA input parameters, assumes that system dictionary is already with structure_labels
+        spec.input(
+            "min_cycles", valid_type=Int, default=Int(10000)
+        )  # Minimum number of cycles, before workchain stops
+        spec.input(
+            "raspa_verbosity", valid_type=Int, default=Int(10)
+        )  # will put  PrintEvery to NumCycles divided by this number
+        spec.input(
+            "raspa_options", valid_type=dict, default=None, required=False
+        )  # scheduler options for raspa
 
         # settings
-        spec.input("_usecharges", valid_type=bool, default=True, required=False)
+        spec.input("usecharges", valid_type=bool, default=True, required=False)
 
         # workflow
         spec.outline(
-            cls.init,
+            cls.setup,
             cls.run_zeopp,  # computes volpo and block pockets
-            cls.init_raspa_calc,  # assign HeliumVoidFraction=POAV
-            cls.run_first_gcmc,
+            cls.inspect_zeopp_calc,  # extract blocked pockets
+            cls.init_raspa_calc,
+            cls.run_first_gcmc,  # the first GCMC also runs initialization
             cls.parse_loading_raspa,
             while_(cls.should_run_loading_raspa)(
                 cls.run_loading_raspa,  # for each run, recover the last snapshot of the previous and run GCMC
@@ -77,7 +104,7 @@ class ConvergeLoadingWorkchain(WorkChain):
         # to be returned
         spec.outputs.dynamic = True
 
-    def init(self):
+    def setup(self):
         """Initialize variables and the pressures we want to compute"""
         self.ctx.structure = self.inputs.structure
         self.ctx.pressure = self.inputs.pressure
@@ -86,403 +113,591 @@ class ConvergeLoadingWorkchain(WorkChain):
         self.ctx.cycles = 0
         self.ctx.counter = 0
 
-        # Set up dictionaries
-        self.ctx.loading = {}
-        self.ctx.loading_dev = {}
-        self.ctx.enthalpy_of_adsorption = {}
-        self.ctx.enthalpy_of_adsorption_dev = {}
-        self.ctx.raspa_warnings = {}
-        self.ctx.mc_statistics = {}
-        self.ctx.tail_correction_energy_average = {}
-        self.ctx.tail_correction_energy_dev = {}
-        self.ctx.ads_ads_coulomb_energy_average = {}
-        self.ctx.ads_ads_coulomb_energy_dev = {}
-        self.ctx.ads_ads_total_energy_average = {}
-        self.ctx.ads_ads_total_energy_dev = {}
-        self.ctx.ads_ads_vdw_energy_average = {}
-        self.ctx.ads_ads_vdw_energy_dev = {}
-        self.ctx.host_ads_coulomb_energy_average = {}
-        self.ctx.host_ads_coulomb_energy_dev = {}
-        self.ctx.host_ads_total_energy_average = {}
-        self.ctx.host_ads_total_energy_dev = {}
-        self.ctx.host_ads_vdw_energy_average = {}
-        self.ctx.host_ads_vdw_energy_dev = {}
-        self.ctx.total_energy_average = {}
-        self.ctx.total_energy_dev = {}
+        # Set up dictionaries, we want to record the progress of the simulation
+        self.ctx.raspa_comp = AttributeDict(self.inputs.raspa_comp)
+        self.ctx.loading = DefaultsDict(list)
+        self.ctx.loading_dev = DefaultsDict(list)
+        self.ctx.enthalpy_of_adsorption = DefaultsDict(list)
+        self.ctx.enthalpy_of_adsorption_dev = DefaultsDict(list)
+        self.ctx.adsorbate_density_average = DefaultsDict(list)
+        self.ctx.adsorbate_density_dev = DefaultsDict(list)
+        self.ctx.enthalpy_of_adsorption_average = []
+        self.ctx.enthalpy_of_adsorption_dev = []
 
-        # ToDo: Probably cleaner to merge parts of the settings to avoid copy paste mistakes
-        self.ctx.raspa_parameters_gcmc = self.inputs.raspa_parameters_gcmc.get_dict()
+        # Keeping track of total energies
+        self.ctx.total_energy_average = []
+        self.ctx.total_energy_dev = []
+
+        # Keeping track of host-ads energies
+        self.ctx.host_ads_total_energy_average = []
+        self.ctx.host_ads_total_energy_dev = []
+
+        self.ctx.host_ads_vdw_energy_average = []
+        self.ctx.host_ads_vdw_energy_dev = []
+
+        self.ctx.host_ads_coulomb_energy_average = []
+        self.ctx.host_ads_coulomb_energy_dev = []
+
+        # Keeping track of ads-ads energies
+        self.ctx.ads_ads_total_energy_average = []
+        self.ctx.ads_ads_total_energy_dev = []
+
+        self.ctx.ads_ads_coulomb_energy_average = []
+        self.ctx.ads_ads_coulomb_energy_dev = []
+
+        self.ctx.ads_ads_vdw_energy_average = []
+        self.ctx.ads_ads_vdw_energy_dev = []
+
+        self.ctx.raspa_parameters = deepcopy(self.inputs.raspa_parameters.get_dict())
 
         if self.inputs._usecharges:
-            self.ctx.raspa_parameters_gcmc["ChargeMethod"] = "Ewald"
-            self.ctx.raspa_parameters_gcmc["EwaldPrecision"] = 1e-6
-            self.ctx.raspa_parameters_gcmc["GeneralSettings"][
+            self.ctx.raspa_parameters["ChargeMethod"] = "Ewald"
+            self.ctx.raspa_parameters["EwaldPrecision"] = 1e-6
+            self.ctx.raspa_parameters["GeneralSettings"][
                 "UseChargesFromCIFFile"
             ] = "yes"
         else:
-            self.ctx.raspa_parameters_gcmc["GeneralSettings"][
-                "UseChargesFromCIFFile"
-            ] = "no"
+            self.ctx.raspa_parameters["GeneralSettings"]["UseChargesFromCIFFile"] = "no"
 
         self.ctx.restart_raspa_calc = None
 
-        self.ctx.raspa_parameters_gcmc_0 = (
-            self.ctx.raspa_parameters_gcmc
-        )  # make copy to stay safe
-
     def run_zeopp(self):
-        """Main function that performs zeo++ VOLPO and block calculations."""
-        params = {
-            "ha": True,
-            # 100 samples / Ang^3: accurate for all the structures
-            "block": [self.inputs.zeopp_probe_radius.value, 100],
-            # 100k samples, may need more for structures bigger than 30x30x30
-            "volpo": [
-                self.inputs.zeopp_probe_radius.value,
-                self.inputs.zeopp_probe_radius.value,
-                100000,
-            ],
-        }
-
-        inputs = {
-            "code": self.inputs.zeopp_code,
-            "structure": self.inputs.structure,
-            "parameters": NetworkParameters(dict=params).store(),
-             'metadata'  :{
-            "_options": self.inputs._zeopp_options,
-            "_label": "ZeoppVolpoBlock",
+        """Function that performs zeo++ volpo, sa and block calculations."""
+        for key, value in self.ctx.raspa_comp.items():
+            comp_name = value.name
+            params = {
+                "ha": True,
+                "sa": [
+                    self.inputs.zeopp_probe_radius.value,
+                    self.inputs.zeopp_probe_radius.value,
+                    self.inputs.structure.label + "_" + comp_name + ".sa",
+                ],
+                # 100 samples / Ang^3: accurate for all the structures
+                "block": [
+                    self.inputs.zeopp_probe_radius.value,
+                    100,
+                    self.inputs.structure.label + "_" + comp_name + ".block",
+                ],
+                # 100k samples, may need more for structures bigger than 30x30x30
+                "volpo": [
+                    self.inputs.zeopp_probe_radius.value,
+                    self.inputs.zeopp_probe_radius.value,
+                    100000,
+                    self.inputs.structure.label + "_" + comp_name + ".volpo",
+                ],
             }
-        }
 
-        # Use default zeopp atomic radii only if a .rad file is not specified
-        try:
-            inputs["atomic_radii"] = self.inputs.zeopp_atomic_radii
-            self.report("Zeopp will use atomic radii from the .rad file")
-        except:
-            self.report("Zeopp will use default atomic radii")
+            inputs = {
+                "code": self.inputs.zeopp_code,
+                "structure": self.inputs.structure,
+                "parameters": NetworkParameters(dict=params).store(),
+                "metadata": {
+                    "options": self.inputs._zeopp_options,
+                    "label": "ZeoppVolpoBlock",
+                    "description": "Zeo++ calculation (sa, volpo, block) for structure {}".format(
+                        self.inputs.structure.label
+                    ),
+                },
+            }
 
-        # Create the calculation process and launch it
-        res = self.submit(ZeoppCalculation.process(), **inputs)
-        self.report(
-            "pk: {} | Running zeo++ volpo and block calculations".format(running.pid)
-        )
-        return ToContext(zeopp=res)
+            # Use default zeopp atomic radii only if a .rad file is not specified
+            try:
+                inputs["atomic_radii"] = self.inputs.zeopp_atomic_radii
+                self.report("Zeo++ will use atomic radii from the .rad file")
+            except:
+                self.report("Zeo++ will use default atomic radii")
+
+            # Create the calculation process and submit it
+            zeopp_full = self.submit(ZeoppCalculation, **inputs)
+            zeopp_label = "zeopp_{}".format(comp_name)
+            self.report(
+                "pk: {} | Running Zeo++ volpo, sa and block calculations".format(
+                    zeopp_full.pid
+                )
+            )
+            return self.to_context(**{zeopp_label: zeopp_full})
+
+    def inspect_zeopp_calc(self):
+        """Fail early if already Zeo++ fails. Extract blocked pockets."""
+        for key, value in self.ctx.raspa_comp.items():
+            if key in list(self.inputs.raspa_comp):
+                comp_name = value.name
+                zeopp_label = "zeopp_{}".format(comp_name)
+                self.report("Checking if {} Zeo++ job finished OK".format(zeopp_label))
+                assert self.ctx[zeopp_label].is_finished_ok
+
+        self.ctx.blocked_pockets = {}
+        self.ctx.number_blocking_spheres = {}
+
+        for key, value in self.ctx.raspa_comp.items():
+            if key in list(self.inputs.raspa_comp):
+                comp_name = value.name
+                zeopp_label = "zeopp_{}".format(comp_name)
+                bp_label = "_".join((self.inputs.structure.label, comp_name))
+                bp_path = os.path.join(
+                    self.ctx[zeopp_label]
+                    .outputs.retrieved._repository._get_base_folder()
+                    .abspath,
+                    bp_label + ".block",
+                )
+
+                with open(bp_path, "r") as block_file:
+                    self.ctx.number_blocking_spheres[comp_name] = int(
+                        block_file.readline().strip()
+                    )
+                    if self.ctx.number_blocking_spheres[comp_name] > 0:
+                        self.ctx.raspa_parameters["Component"][comp_name][
+                            "BlockPocketsFileName"
+                        ] = {}
+                        self.ctx.raspa_parameters["Component"][comp_name][
+                            "BlockPocketsFileName"
+                        ][self.inputs.structure.label] = bp_label
+
+                        # This creates the link but the file is not retrieved to be used.
+                        inputs["block_pocket"][bp_label] = self.ctx[
+                            zeopp_label
+                        ].outputs.block
+
+                        self.report(
+                            "{} blocking spheres are present for {} and used for RASPA".format(
+                                self.ctx.number_blocking_spheres[comp_name], comp_name
+                            )
+                        )
+                    else:
+                        self.report(
+                            "No blocking spheres found for {}".format(comp_name)
+                        )
 
     def init_raspa_calc(self):
-        """Parse the output of Zeo++ and instruct the input for Raspa. """
-        # Use probe-occupiable available void fraction as the helium void fraction (for excess uptake)
-        self.ctx.raspa_parameters_gcmc_0["GeneralSettings"][
-            "HeliumVoidFraction"
-        ] = self.ctx.zeopp["output_parameters"].get_dict()["POAV_Volume_fraction"]
-        self.ctx.raspa_parameters_gcmc["GeneralSettings"][
-            "HeliumVoidFraction"
-        ] = self.ctx.zeopp["output_parameters"].get_dict()["POAV_Volume_fraction"]
+        """Parse the output of Zeo++ and instruct the input for RASPA. """
+
+        # Create the component dictionary for RASPA
+        for key, value in self.ctx.raspa_comp.items():
+            if key in list(self.inputs.raspa_comp):
+                comp_name = value.name
+                mol_def = value.mol_def
+                bp_label = "_".join((self.inputs.structure.label, comp_name))
+                self.ctx.raspa_parameters["Component"][
+                    comp_name
+                ] = self.ctx.raspa_parameters["Component"].pop(key)
+                self.ctx.raspa_parameters["Component"][comp_name][
+                    "MoleculeDefinition"
+                ] = mol_def
+
+                comp_name = value.name
+                mol_frac = value.mol_fraction
+                singlebead = value.singlebead
+                self.ctx.raspa_parameters["Component"][comp_name][
+                    "MolFraction"
+                ] = float(mol_frac)
+                self.ctx.raspa_parameters["Component"][comp_name][
+                    "TranslationProbability"
+                ] = 0.5
+
+                # Only adds RotationProbability move if it is not singlebead model.
+                if not singlebead:
+                    self.ctx.raspa_parameters["Component"][comp_name][
+                        "RotationProbability"
+                    ] = 0.5
+                self.ctx.raspa_parameters["Component"][comp_name][
+                    "ReinsertionProbability"
+                ] = 0.5
+                self.ctx.raspa_parameters["Component"][comp_name][
+                    "SwapProbability"
+                ] = 1.0
+                self.ctx.raspa_parameters["Component"][comp_name][
+                    "IdentityChangeProbability"
+                ] = 1.0
+                self.ctx.raspa_parameters["Component"][comp_name][
+                    "NumberOfIdentityChanges"
+                ] = len(list(self.inputs.raspa_comp))
+                self.ctx.raspa_parameters["Component"][comp_name][
+                    "IdentityChangesList"
+                ] = [i for i in range(len(list(self.inputs.raspa_comp)))]
+
+        cutoff = self.ctx.parameters["GeneralSettings"]["CutOff"]
+        self.ctx.ucs = multiply_unit_cell(self.inputs.structure, cutoff * 2)
+        self.ctx.raspa_parameters["GeneralSettings"]["UnitCells"] = "{} {} {}".format(
+            self.ctx.ucs[0], self.ctx.ucs[1], self.ctx.ucs[2]
+        )
+
+        self.ctx.raspa_parameters["GeneralSettings"]["PrintEvery"] = int(
+            self.ctx.raspa_parameters["GeneralSettings"]["NumberOfCycles"]
+            / self.input.raspa_verbosity
+        )
+
+        self.ctx.raspa_parameters["GeneralSettings"]["PrintPropertiesEvery"] = int(
+            self.ctx.raspa_parameters["GeneralSettings"]["NumberOfCycles"]
+            / self.input.raspa_verbosity
+        )
+
+        self.ctx.raspa_parameters_0 = deepcopy(
+            self.ctx.raspa_parameters
+        )  # make copy to stay safe
 
     def should_run_loading_raspa(self):
         """We run another raspa calculation only if the current iteration is smaller than
         the total number of pressures we want to compute."""
-        self.report(
-            "checking if need to run more cycle. Total number of runs {}, current run {}".format(
-                self.ctx.number_runs, self.ctx.current_run
-            )
-        )
 
-        rel_change = (
-            np.abs(
-                self.ctx.loading_averages[self.ctx.counter - 1]
-                - self.ctx.loading_averages[self.ctx.counter]
+        self.report(
+            "checking if need to run more cycle. Current run {}".format(
+                self.ctx.counter
             )
-            / self.ctx.loading_averages[self.ctx.counter]
         )
 
         if self.ctx.counter == 0:
             return True
-        elif (self.ctx.cycles > self.ctx.min_cycles) & (
-            rel_change * 100 < self.ctx.percent_change
-        ):
+
+        # First check is cycles > min cycles
+        elif self.ctx.cycles > self.ctx.min_cycles:
+            # If this is the case, get the relative changes. Get the largest one,
+            # check if below threshold
+            converged = []
+            output_raspa_loading = (
+                self.ctx.raspa_loading.outputs.output_parameters.get_dict()
+            )
+            self.ctx.restart_raspa_calc = self.ctx.raspa_loading.outputs["retrieved"]
+            for key, value in self.ctx.raspa_comp.items():
+                if key in list(self.inputs.raspa_comp):
+                    comp_name = value.name
+                    conv_threshold = value.conv_threshold
+                    loading_previous = self.ctx.loading[comp_name][-2]
+                    loading_current = self.ctx.loading[comp_name][-1]
+
+                    rel_change = (
+                        np.abs(loading_previous - loading_current) / loading_current
+                    )
+
+                    if rel_change * 100 < conv_threshold:
+                        converged.append(True)
+                    else:
+                        converged.append(False)
+
+            if all(should_run):
+                return False  # all components are converged
+            else:
+                return True
+        else:  # minimum number of cycles not reached
             return False
-        else:
-            return True
 
     def run_first_gcmc(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
-        self.ctx.raspa_parameters_gcmc_0["GeneralSettings"][
+        self.ctx.raspa_parameters_0["GeneralSettings"][
             "ExternalPressure"
         ] = self.ctx.pressure
 
-        parameters = ParameterData(dict=self.ctx.raspa_parameters_gcmc_0).store()
+        parameters = ParameterData(dict=self.ctx.raspa_parameters_0).store()
         # Create the input dictionary
         inputs = {
             "code": self.inputs.raspa_code,
             "structure": self.ctx.structure,
             "parameters": parameters,
-            'metadata'  :{
-            "_options": self.inputs._raspa_options,
-            "_label": "run_first_loading_raspa",
-            }
+            "metadata": {
+                "options": self.inputs._raspa_options,
+                "label": "run_first_loading_raspa",
+                "description": "first RASPA calculation in ConvergeLoadingWorkchain for {}".format(
+                    self.inputs.structure.label
+                ),
+            },
         }
-        # Check if there are pocket blocks to be loaded
-        try:
-            inputs["block_component_0"] = self.ctx.zeopp["block"]
-        except Exception:
-            pass
-
-        if self.ctx.restart_raspa_calc is not None:
-            inputs["retrieved_parent_folder"] = self.ctx.restart_raspa_calc
+        inputs["block_pocket"] = self.ctx.blocked_pockets
 
         # Create the calculation process and launch it
-        res = submit(RaspaConvergeWorkChain, **inputs)
+        gcmc = self.submit(RaspaConvergeWorkChain, **inputs)
         self.ctx.counter += 1
-        self.ctx.cycles += self.ctx.raspa_parameters_gcmc["GeneralSettings"][
+        self.ctx.cycles += self.ctx.raspa_parameters["GeneralSettings"][
             "NumberOfCycles"
         ]
-        self.report(
-            "pk: {} | Running RASPA  for the {} time".format(
-                running.pid, self.ctx.counter
-            )
-        )
-
-        return ToContext(raspa_loading=res)
+        self.report("pk: {} | Running first RASPA GCMC".format(gcmc.pid))
+        return ToContext(raspa_loading=gcmc)
 
     def run_loading_raspa(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
-        self.ctx.raspa_parameters_gcmc["GeneralSettings"][
-            "NumberOfInitializationCycles"
-        ] = 0
-        self.ctx.raspa_parameters_gcmc["GeneralSettings"][
+        self.ctx.raspa_parameters["GeneralSettings"]["NumberOfInitializationCycles"] = 0
+        self.ctx.raspa_parameters["GeneralSettings"][
             "ExternalPressure"
         ] = self.ctx.pressure
+        self.ctx.counter += 1
+        self.ctx.cycles += self.ctx.raspa_parameters["GeneralSettings"][
+            "NumberOfCycles"
+        ]
 
-        parameters = ParameterData(dict=self.ctx.raspa_parameters_gcmc).store()
+        parameters = ParameterData(dict=self.ctx.raspa_parameters).store()
         # Create the input dictionary
         inputs = {
             "code": self.inputs.raspa_code,
             "structure": self.ctx.structure,
             "parameters": parameters,
-             'metadata'  :{
-            "_options": self.inputs._raspa_options,
-            "_label": "run_loading_raspa",
-            }
+            "metadata": {
+                "options": self.inputs._raspa_options,
+                "label": "run_loading_raspa",
+                "description": "RASPA #{} calculation in ConvergeLoadingWorkchain for {}".format(
+                    self.ctx.counter, self.inputs.structure.label
+                ),
+            },
         }
-        # Check if there are pocket blocks to be loaded
-        try:
-            inputs["block_component_0"] = self.ctx.zeopp["block"]
-        except Exception:
-            pass
 
+        inputs["block_pocket"] = self.ctx.blocked_pockets
         if self.ctx.restart_raspa_calc is not None:
             inputs["retrieved_parent_folder"] = self.ctx.restart_raspa_calc
 
         # Create the calculation process and launch it
-        res = submit(RaspaConvergeWorkChain, **inputs)
-        self.ctx.counter += 1
-        self.ctx.cycles += self.ctx.raspa_parameters_gcmc["GeneralSettings"][
-            "NumberOfCycles"
-        ]
+        gcmc = self.submit(RaspaConvergeWorkChain, **inputs)
+
         self.report(
-            "pk: {} | Running RASPA  for the {} time".format(
-                running.pid, self.ctx.counter
+            "pk: {} | Running RASPA GCMC for the {} time".format(
+                gcmc.pid, self.ctx.counter
             )
         )
-
-        return ToContext(raspa_loading=res)
+        return ToContext(raspa_loading=gcmc)
 
     def parse_loading_raspa(self):
-        """Extract the pressure and loading average of the last completed raspa calculation"""
-        self.ctx.restart_raspa_calc = self.ctx.raspa_loading["retrieved_parent_folder"]
-        loading_average = self.ctx.raspa_loading[
-            "component_0"
-        ].dict.loading_absolute_average
-        loading_dev = self.ctx.raspa_loading["component_0"].dict.loading_absolute_dev
-        enthalpy_of_adsorption = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.enthalpy_of_adsorption_average
-        enthalpy_of_adsorption_dev = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.enthalpy_of_adsorption_dev
+        output_gcmc = self.ctx.raspa_loading.outputs.output_parameters.get_dict()
+        for key, value in self.ctx.raspa_comp.items():
+            if key in list(self.inputs.raspa_comp):
+                comp_name = value.name
+                mol_frac = value.mol_fraction
+                self.ctx.loading[comp_name] = output_gcmc[self.inputs.structure.label][
+                    "components"
+                ][comp_name]["loading_absolute_average"]
+                self.ctx.loading_dev[comp_name] = output_gcmc[
+                    self.inputs.structure.label
+                ]["components"][comp_name]["loading_absolute_dev"]
 
-        ads_ads_coulomb_energy_average = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.ads_ads_coulomb_energy_average
-        ads_ads_coulomb_energy_dev = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.ads_ads_coulomb_energy_dev
-        ads_ads_total_energy_average = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.ads_ads_total_energy_average
-        ads_ads_total_energy_dev = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.ads_ads_total_energy_dev
-        ads_ads_vdw_energy_average = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.ads_ads_vdw_energy_average
-        ads_ads_vdw_energy_dev = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.ads_ads_vdw_energy_dev
-        host_ads_coulomb_energy_average = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.host_ads_coulomb_energy_average
-        host_ads_coulomb_energy_dev = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.host_ads_coulomb_energy_dev
-        host_ads_total_energy_average = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.host_ads_total_energy_average
-        host_ads_total_energy_dev = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.host_ads_total_energy_dev
-        host_ads_vdw_energy_average = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.host_ads_vdw_energy_average
-        host_ads_vdw_energy_dev = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.host_ads_vdw_energy_dev
-        total_energy_average = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.total_energy_average
-        total_energy_dev = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.total_energy_dev
+                self.ctx.adsorbate_density_average[comp_name] = output_gcmc[
+                    self.inputs.structure.label
+                ]["components"][comp_name]["adsorbate_density_average"]
+                self.ctx.adsorbate_density_dev[comp_name] = output_gcmc[
+                    self.inputs.structure.label
+                ]["components"][comp_name]["adsorbate_density_dev"]
 
-        mc_statistics = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.mc_move_statistics
-        raspa_warnings = self.ctx.raspa_loading["output_parameters"].dict.warnings
-        tail_correction_energy_average = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.tail_correction_energy_average
-        tail_correction_energy_dev = self.ctx.raspa_loading[
-            "output_parameters"
-        ].dict.tail_correction_energy_dev
+            # Keeping track of total energies
+            self.ctx.total_energy_average.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "total_energy_average"
+                ]
+            )
+            self.ctx.total_energy_dev.append(
+                output_gcmc[self.inputs.structure.label]["general"]["total_energy_dev"]
+            )
 
-        curr_run = str(self.ctx.counter)
+            # Keeping track of host-ads energies
+            self.ctx.host_ads_total_energy_average.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "host_ads_total_energy_average"
+                ]
+            )
+            self.ctx.host_ads_total_energy_dev.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "host_ads_total_energy_dev"
+                ]
+            )
 
-        self.ctx.tail_correction_energy_average[
-            curr_run
-        ] = tail_correction_energy_average
-        self.ctx.tail_correction_energy_dev[curr_run] = tail_correction_energy_dev
-        self.ctx.raspa_warnings[curr_run] = raspa_warnings
-        self.ctx.loading[curr_run] = loading_average
-        self.ctx.mc_statistics[curr_run] = mc_statistics
+            self.ctx.host_ads_vdw_energy_average.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "host_ads_vdw_energy_average"
+                ]
+            )
+            self.ctx.host_ads_vdw_energy_dev.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "host_ads_vdw_energy_dev"
+                ]
+            )
 
-        self.ctx.loading_dev[curr_run] = loading_dev
-        self.ctx.enthalpy_of_adsorption[curr_run] = enthalpy_of_adsorption
-        self.ctx.enthalpy_of_adsorption_dev[curr_run] = enthalpy_of_adsorption_dev
+            self.ctx.host_ads_coulomb_energy_average.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "host_ads_coulomb_energy_average"
+                ]
+            )
+            self.ctx.host_ads_coulomb_energy_dev.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "host_ads_coulomb_energy_dev"
+                ]
+            )
 
-        self.ctx.ads_ads_coulomb_energy_average[
-            curr_run
-        ] = ads_ads_coulomb_energy_average
-        self.ctx.ads_ads_coulomb_energy_dev[curr_run] = ads_ads_coulomb_energy_dev
-        self.ctx.ads_ads_total_energy_average[curr_run] = ads_ads_total_energy_average
-        self.ctx.ads_ads_total_energy_dev[curr_run] = ads_ads_total_energy_dev
-        self.ctx.ads_ads_vdw_energy_average[curr_run] = ads_ads_vdw_energy_average
-        self.ctx.ads_ads_vdw_energy_dev[curr_run] = ads_ads_vdw_energy_dev
-        self.ctx.host_ads_coulomb_energy_average[
-            curr_run
-        ] = host_ads_coulomb_energy_average
-        self.ctx.host_ads_coulomb_energy_dev[curr_run] = host_ads_coulomb_energy_dev
-        self.ctx.host_ads_total_energy_average[curr_run] = host_ads_total_energy_average
-        self.ctx.host_ads_total_energy_dev[curr_run] = host_ads_total_energy_dev
-        self.ctx.host_ads_vdw_energy_average[curr_run] = host_ads_vdw_energy_average
-        self.ctx.host_ads_vdw_energy_dev[curr_run] = host_ads_vdw_energy_dev
-        self.ctx.total_energy_average[curr_run] = total_energy_average
-        self.ctx.total_energy_dev[curr_run] = total_energy_dev
+            # Keeping track of ads-ads energies
+            self.ctx.ads_ads_total_energy_average.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "ads_ads_total_energy_average"
+                ]
+            )
+
+            self.ctx.ads_ads_total_energy_dev.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "ads_ads_total_energy_dev"
+                ]
+            )
+
+            self.ctx.ads_ads_coulomb_energy_average.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "ads_ads_coulomb_energy_average"
+                ]
+            )
+            self.ctx.ads_ads_coulomb_energy_dev.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "ads_ads_coulomb_energy_dev"
+                ]
+            )
+
+            self.ctx.ads_ads_vdw_energy_average.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "ads_ads_vdw_energy_average"
+                ]
+            )
+            self.ctx.ads_ads_vdw_energy_dev.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "ads_ads_vdw_energy_dev"
+                ]
+            )
 
     def return_results(self):
         """Attach the results to the output."""
 
         result_dict = {}
 
-        # Zeopp section
-        result_dict["Density"] = self.ctx.zeopp["output_parameters"].get_dict()[
-            "Density"
-        ]
-        result_dict["Density_unit"] = "g/cm^3"
-        result_dict["POAV_Volume_fraction"] = self.ctx.zeopp[
-            "output_parameters"
-        ].get_dict()["POAV_Volume_fraction"]
-        result_dict["PONAV_Volume_fraction"] = self.ctx.zeopp[
-            "output_parameters"
-        ].get_dict()["PONAV_Volume_fraction"]
-        result_dict["POAV_cm^3/g"] = self.ctx.zeopp["output_parameters"].get_dict()[
-            "POAV_cm^3/g"
-        ]
-        try:
-            result_dict["number_blocking_spheres"] = self.ctx.number_blocking_spheres
-        except AttributeError:
-            self.report("No blocked pockets found.")
-            pass
-        # Raspa loading
-        try:
-            result_dict["total_number_cycles"] = self.ctx.cycles
-            result_dict["final_counter"] = self.ctx.counter
-            result_dict["pressure_pa"] = self.ctx.pressure
-            result_dict[
-                "conversion_factor_molec_uc_to_cm3stp_cm3"
-            ] = self.ctx.raspa_loading["component_0"].get_dict()[
-                "conversion_factor_molec_uc_to_cm3stp_cm3"
+        # RASPA
+        result_dict["pressure"] = (
+            self.ctx.raspa_parameters["System"][self.inputs.structure.label][
+                "ExternalPressure"
             ]
-            result_dict["conversion_factor_molec_uc_to_gr_gr"] = self.ctx.raspa_loading[
-                "component_0"
-            ].get_dict()["conversion_factor_molec_uc_to_gr_gr"]
-            result_dict[
-                "conversion_factor_molec_uc_to_mol_kg"
-            ] = self.ctx.raspa_loading["component_0"].get_dict()[
-                "conversion_factor_molec_uc_to_mol_kg"
-            ]
+            / 1e5
+        )
+        result_dict["pressure_unit"] = "bar"
 
-            result_dict["mc_statistics"] = self.ctx.mc_statistics
-            result_dict["warnings"] = self.ctx.raspa_warnings
+        result_dict["temperature"] = self.ctx.raspa_parameters["System"][
+            self.inputs.structure.label
+        ]["ExternalTemperature"]
+        result_dict["temperature_unit"] = "K"
 
-            result_dict["loading_averages"] = self.ctx.loading
-            result_dict["loading_dev"] = self.ctx.loading_dev
-            result_dict["enthalpy_of_adsorption"] = self.ctx.enthalpy_of_adsorption
-            result_dict[
-                "enthalpy_of_adsorption_dev"
-            ] = self.ctx.enthalpy_of_adsorption_dev
+        # General, resubmission-run independent RASPA parameters
+        result_dict["conversion_factor_molec_uc_to_cm3stp_cm3"] = {}
+        result_dict["conversion_factor_molec_uc_to_gr_gr"] = {}
+        result_dict["conversion_factor_molec_uc_to_mol_kg"] = {}
+        result_dict["mol_fraction"] = {}
+        output_gcmc = self.ctx.raspa_loading.outputs.output_parameters.get_dict()
+        for key, value in self.ctx.raspa_comp.items():
+            if key in list(self.inputs.raspa_comp):
+                comp_name = value.name
+                mol_frac = value.mol_fraction
+                result_dict["conversion_factor_molec_uc_to_cm3stp_cm3"][
+                    comp_name
+                ] = output_gcmc[self.inputs.structure.label]["components"][comp_name][
+                    "conversion_factor_molec_uc_to_cm3stp_cm3"
+                ]
+                result_dict["conversion_factor_molec_uc_to_gr_gr"][
+                    comp_name
+                ] = output_gcmc[self.inputs.structure.label]["components"][comp_name][
+                    "conversion_factor_molec_uc_to_gr_gr"
+                ]
+                result_dict["conversion_factor_molec_uc_to_mol_kg"][
+                    comp_name
+                ] = output_gcmc[self.inputs.structure.label]["components"][comp_name][
+                    "conversion_factor_molec_uc_to_mol_kg"
+                ]
+                result_dict["mol_fraction"][comp_name] = output_gcmc[
+                    self.inputs.structure.label
+                ]["components"][comp_name]["mol_fraction"]
 
-            result_dict[
-                "ads_ads_coulomb_energy_average"
-            ] = self.ctx.ads_ads_coulomb_energy_average
-            result_dict[
-                "ads_ads_coulomb_energy_dev"
-            ] = self.ctx.ads_ads_coulomb_energy_dev
-            result_dict[
-                "ads_ads_total_energy_average"
-            ] = self.ctx.ads_ads_total_energy_average
-            result_dict["ads_ads_total_energy_dev"] = self.ctx.ads_ads_total_energy_dev
-            result_dict[
-                "ads_ads_vdw_energy_average"
-            ] = self.ctx.ads_ads_vdw_energy_average
-            result_dict["ads_ads_vdw_energy_dev"] = self.ctx.ads_ads_vdw_energy_dev
+        result_dict["loading_absolute_average"] = dict(self.ctx.loading)
+        result_dict["loading_absolute_dev"] = dict(self.ctx.loading_dev)
+        result_dict["loading_absolute_units"] = "molec/uc"
 
-            result_dict[
-                "host_ads_coulomb_energy_average"
-            ] = self.ctx.host_ads_coulomb_energy_average
-            result_dict[
-                "host_ads_coulomb_energy_dev"
-            ] = self.ctx.host_ads_coulomb_energy_dev
-            result_dict[
-                "host_ads_total_energy_average"
-            ] = self.ctx.host_ads_total_energy_average
-            result_dict[
-                "host_ads_total_energy_dev"
-            ] = self.ctx.host_ads_total_energy_dev
-            result_dict[
-                "host_ads_vdw_energy_average"
-            ] = self.ctx.host_ads_vdw_energy_average
-            result_dict["host_ads_vdw_energy_dev"] = self.ctx.host_ads_vdw_energy_dev
-            result_dict["total_energy_average"] = self.ctx.total_energy_average
-            result_dict["total_energy_dev"] = self.ctx.total_energy_dev
+        result_dict["adsorbate_density_average"] = dict(
+            self.ctx.adsorbate_density_average
+        )
+        result_dict["adsorbate_density_dev"] = dict(self.ctx.adsorbate_density_dev)
+        result_dict["adsorbate_density_units"] = "kg/m^3"
 
-        except AttributeError:
-            self.report(
-                "Problems with returning the results dictionary for the RASPA part."
-            )
-            pass
+        result_dict["host_ads_total_energy_unit"] = "kJ/mol"
+        result_dict["host_ads_vdw_energy_unit"] = "kJ/mol"
+        result_dict["total_energy_average_unit"] = "K"
+
+        result_dict["total_energy_average"] = self.ctx.total_energy_average
+        result_dict["total_energy_dev"] = self.ctx.total_energy_dev
+
+        result_dict[
+            "host_ads_total_energy_average"
+        ] = self.ctx.host_ads_total_energy_average
+        result_dict["host_ads_total_energy_dev"] = self.ctx.host_ads_total_energy_dev
+
+        result_dict[
+            "host_ads_vdw_energy_average"
+        ] = self.ctx.host_ads_vdw_energy_average
+        result_dict["host_ads_vdw_energy_dev"] = self.ctx.host_ads_vdw_energy_dev
+
+        result_dict[
+            "host_ads_coulomb_energy_average"
+        ] = self.ctx.host_ads_coulomb_energy_average
+        result_dict[
+            "host_ads_coulomb_energy_dev"
+        ] = self.ctx.host_ads_coulomb_energy_dev
+
+        result_dict[
+            "ads_ads_total_energy_average"
+        ] = self.ctx.ads_ads_total_energy_average
+        result_dict["ads_ads_total_energy_dev"] = self.ctx.ads_ads_total_energy_dev
+
+        result_dict[
+            "ads_ads_coulomb_energy_average"
+        ] = self.ctx.ads_ads_coulomb_energy_average
+        result_dict["ads_ads_coulomb_energy_dev"] = self.ctx.ads_ads_coulomb_energy_dev
+
+        result_dict["ads_ads_vdw_energy_average"] = self.ctx.ads_ads_vdw_energy_average
+        result_dict["ads_ads_vdw_energy_dev"] = self.ctx.ads_ads_vdw_energy_dev
+        result_dict["uc_multipliers"] = self.ctx.ucs
+
+
+        # Zeo++
+        result_dict["poav_fraction"] = {}
+        result_dict["ponav_fraction"] = {}
+        result_dict["gpoav"] = {}
+        result_dict["gasa"] = {}
+        result_dict["vasa"] = {}
+        result_dict["gnasa"] = {}
+        result_dict["vnasa"] = {}
+        result_dict["channel_surface_area"] = {}
+        result_dict["pocket_surface_area"] = {}
+        result_dict["number_blocking_spheres"] = {}
+        result_dict["density_unit"] = "g/cm^3"
+        result_dict["gpoav_unit"] = "cm^3/g"
+        result_dict["gasa_unit"] = "m^2/g"
+        result_dict["vasa_unit"] = "m^2/cm^3"
+        result_dict["gnasa_unit"] = "m^2/g"
+        result_dict["vnasa_unit"] = "ASA_m^2/cm^3"
+        result_dict["channel_surface_area_unit"] = "A^2"
+        result_dict["pocket_surface_area_unit"] = "A^2"
+
+        for key, value in self.ctx.raspa_comp.items():
+            if key in list(self.inputs.raspa_comp):
+                comp_name = value.name
+                zeopp_label = "zeopp_{}".format(comp_name)
+                output_zeo = self.ctx[zeopp_label].outputs.output_parameters.get_dict()
+                result_dict["poav_fraction"][comp_name] = output_zeo[
+                    "POAV_Volume_fraction"
+                ]
+                result_dict["ponav_fraction"][comp_name] = output_zeo[
+                    "PONAV_Volume_fraction"
+                ]
+                result_dict["gpoav"][comp_name] = output_zeo["POAV_cm^3/g"]
+                result_dict["gasa"][comp_name] = output_zeo["ASA_m^2/g"]
+                result_dict["vasa"][comp_name] = output_zeo["ASA_m^2/cm^3"]
+                result_dict["gasa"][comp_name] = output_zeo["NASA_m^2/g"]
+                result_dict["gnasa"][comp_name] = output_zeo["NASA_m^2/cm^3"]
+                result_dict["channel_surface_area"][comp_name] = output_zeo[
+                    "Channel_surface_area_A^2"
+                ]
+                result_dict["pocket_surface_area"][comp_name] = output_zeo[
+                    "Pocket_surface_area_A^2"
+                ]
+                result_dict["number_blocking_spheres"][
+                    comp_name
+                ] = self.ctx.number_blocking_spheres[comp_name]
+                result_dict["density"] = output_zeo["Density"]
 
         self.out("results", ParameterData(dict=result_dict).store())
-        self.out("blocking_spheres", self.ctx.zeopp["block"])
-        self.report("Workchain <{}> completed successfully".format(self.calc.pk))
-
+        self.report(
+            "ConvergeLoadingWorkchain completed successfully. | Result Dict is <{}>".format(
+                self.outputs["results"].pk
+            )
+        )
         return
