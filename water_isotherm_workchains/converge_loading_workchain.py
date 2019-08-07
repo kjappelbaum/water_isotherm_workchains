@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 import os
 import six
-from .utils.utils import multiply_unit_cell
+from water_isotherm_workchains.utils.utils import multiply_unit_cell
 from copy import deepcopy
 from aiida.common import AttributeDict, DefaultsDict
 from aiida.plugins import CalculationFactory, DataFactory
@@ -164,58 +164,60 @@ class ConvergeLoadingWorkchain(WorkChain):
     def run_zeopp(self):
         """Function that performs zeo++ volpo, sa and block calculations."""
         for key, value in self.ctx.raspa_comp.items():
-            comp_name = value.name
-            params = {
-                "ha": True,
-                "sa": [
-                    self.inputs.zeopp_probe_radius.value,
-                    self.inputs.zeopp_probe_radius.value,
-                    self.inputs.structure.label + "_" + comp_name + ".sa",
-                ],
-                # 100 samples / Ang^3: accurate for all the structures
-                "block": [
-                    self.inputs.zeopp_probe_radius.value,
-                    100,
-                    self.inputs.structure.label + "_" + comp_name + ".block",
-                ],
-                # 100k samples, may need more for structures bigger than 30x30x30
-                "volpo": [
-                    self.inputs.zeopp_probe_radius.value,
-                    self.inputs.zeopp_probe_radius.value,
-                    100000,
-                    self.inputs.structure.label + "_" + comp_name + ".volpo",
-                ],
-            }
+            if key in list(self.inputs.raspa_comp):
+                comp_name = value.name
+                probe_radius = value.radius
+                params = {
+                    "ha": True,
+                    "sa": [
+                        probe_radius,
+                        probe_radius,
+                        self.inputs.structure.label + "_" + comp_name + ".sa",
+                    ],
+                    # 100 samples / Ang^3: accurate for all the structures
+                    "block": [
+                        probe_radius,
+                        100,
+                        self.inputs.structure.label + "_" + comp_name + ".block",
+                    ],
+                    # 100k samples, may need more for structures bigger than 30x30x30
+                    "volpo": [
+                        probe_radius,
+                        probe_radius,
+                        100000,
+                        self.inputs.structure.label + "_" + comp_name + ".volpo",
+                    ],
+                }
 
-            inputs = {
-                "code": self.inputs.zeopp_code,
-                "structure": self.inputs.structure,
-                "parameters": NetworkParameters(dict=params).store(),
-                "metadata": {
-                    "options": self.inputs._zeopp_options,
-                    "label": "ZeoppVolpoBlock",
-                    "description": "Zeo++ calculation (sa, volpo, block) for structure {}".format(
-                        self.inputs.structure.label
-                    ),
-                },
-            }
+                inputs = {
+                    "code": self.inputs.zeopp_code,
+                    "structure": self.inputs.structure,
+                    "parameters": NetworkParameters(dict=params).store(),
+                    "metadata": {
+                        "options": self.inputs._zeopp_options,
+                        "label": "ZeoppVolpoBlock",
+                        "description": "Zeo++ calculation (sa, volpo, block) for structure {}".format(
+                            self.inputs.structure.label
+                        ),
+                    },
+                }
 
-            # Use default zeopp atomic radii only if a .rad file is not specified
-            try:
-                inputs["atomic_radii"] = self.inputs.zeopp_atomic_radii
-                self.report("Zeo++ will use atomic radii from the .rad file")
-            except:
-                self.report("Zeo++ will use default atomic radii")
+                # Use default zeopp atomic radii only if a .rad file is not specified
+                try:
+                    inputs["atomic_radii"] = self.inputs.zeopp_atomic_radii
+                    self.report("Zeo++ will use atomic radii from the .rad file")
+                except:
+                    self.report("Zeo++ will use default atomic radii")
 
-            # Create the calculation process and submit it
-            zeopp_full = self.submit(ZeoppCalculation, **inputs)
-            zeopp_label = "zeopp_{}".format(comp_name)
-            self.report(
-                "pk: {} | Running Zeo++ volpo, sa and block calculations".format(
-                    zeopp_full.pid
+                # Create the calculation process and submit it
+                zeopp_full = self.submit(ZeoppCalculation, **inputs)
+                zeopp_label = "zeopp_{}".format(comp_name)
+                self.report(
+                    "pk: {} | Running Zeo++ volpo, sa and block calculations".format(
+                        zeopp_full.pid
+                    )
                 )
-            )
-            return self.to_context(**{zeopp_label: zeopp_full})
+                return self.to_context(**{zeopp_label: zeopp_full})
 
     def inspect_zeopp_calc(self):
         """Fail early if already Zeo++ fails. Extract blocked pockets."""
@@ -390,7 +392,7 @@ class ConvergeLoadingWorkchain(WorkChain):
         # Create the input dictionary
         inputs = {
             "code": self.inputs.raspa_code,
-            "structure": self.ctx.structure,
+            "framework": self.ctx.structure,
             "parameters": parameters,
             "metadata": {
                 "options": self.inputs._raspa_options,
@@ -414,7 +416,7 @@ class ConvergeLoadingWorkchain(WorkChain):
     def run_loading_raspa(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
         self.ctx.raspa_parameters["GeneralSettings"]["NumberOfInitializationCycles"] = 0
-        self.ctx.raspa_parameters["GeneralSettings"][
+        self.ctx.raspa_parameters["System"][self.inputs.structure.label][
             "ExternalPressure"
         ] = self.ctx.pressure
         self.ctx.counter += 1
@@ -426,7 +428,7 @@ class ConvergeLoadingWorkchain(WorkChain):
         # Create the input dictionary
         inputs = {
             "code": self.inputs.raspa_code,
-            "structure": self.ctx.structure,
+            "framework": self.ctx.structure,
             "parameters": parameters,
             "metadata": {
                 "options": self.inputs._raspa_options,
@@ -645,7 +647,6 @@ class ConvergeLoadingWorkchain(WorkChain):
         result_dict["ads_ads_vdw_energy_average"] = self.ctx.ads_ads_vdw_energy_average
         result_dict["ads_ads_vdw_energy_dev"] = self.ctx.ads_ads_vdw_energy_dev
         result_dict["uc_multipliers"] = self.ctx.ucs
-
 
         # Zeo++
         result_dict["poav_fraction"] = {}
