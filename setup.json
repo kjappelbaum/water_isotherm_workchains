@@ -7,16 +7,13 @@
     "url": "https://github.com/kjappelbaum/water_isotherm_workchains",
     "license": "MIT License",
     "classifiers": [
-        "Programming Language :: Python"
+         "Programming Language :: Python :: 3.6"
     ],
     "setup_requires": ["reentry"],
     "reentry_register": true,
-    "install_requires": [
-        "aiida >= 0.12.2"
-    ],
     "entry_points": {
         "aiida.workflows": [
-            "water_isotherm_workchains.converge_loading_workchain=water_isotherm_workchains.gcmc_md_workchain:ConvergeLoadingWorkchain",
+            "water_isotherm_workchains.converge_loading_workchain=water_isotherm_workchains.converge_loading_workchain:ConvergeLoadingWorkchain"
         ]
     }
 }

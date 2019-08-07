@@ -8,6 +8,7 @@ def slugify(value, allow_unicode=False):
     source: https://github.com/django/django/blob/master/django/utils/text.py
     """
     value = str(value)
+    value = value.strip(".cif")
     if allow_unicode:
         value = unicodedata.normalize("NFKC", value)
     else:
@@ -17,7 +18,7 @@ def slugify(value, allow_unicode=False):
             .decode("ascii")
         )
     value = re.sub(r"[^\w\s-]", "", value).strip().lower()
-    return re.sub(r"[-\s]+", "-", value)
+    return re.sub(r"[-\s]+", "_", value)
 
 
 def multiply_unit_cell(cif, threshold):

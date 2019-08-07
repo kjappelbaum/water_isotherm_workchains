@@ -1,0 +1,11 @@
+Metadata-Version: 1.1
+Name: water-isotherm-workchains
+Version: 0.1
+Summary: AiiDA workflows for advanced sampling of isotherms
+Home-page: https://github.com/kjappelbaum/water_isotherm_workchains
+Author: Kevin M. Jablonka, Daniele Ongari
+Author-email: kevin.jablonka@epfl.ch
+License: MIT License
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3.6

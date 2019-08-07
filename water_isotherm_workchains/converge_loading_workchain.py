@@ -1,11 +1,16 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 from __future__ import absolute_import
 import os
+import numpy as np
 import six
 from water_isotherm_workchains.utils.utils import multiply_unit_cell
 from copy import deepcopy
-from aiida.common import AttributeDict, DefaultsDict
+from collections import defaultdict
+from aiida.common import AttributeDict
 from aiida.plugins import CalculationFactory, DataFactory
-from aiida.orm import Code, Dict, Float, Int, List, Str, load_node
+from aiida.orm import Code, Dict, Float, Int, List, Str, load_node, Bool, Str
 from aiida.engine import submit
 from aiida.engine import ToContext, WorkChain, workfunction, if_, while_, append_
 
@@ -49,27 +54,21 @@ class ConvergeLoadingWorkchain(WorkChain):
 
         # structure, adsorbant, pressures
         spec.input("structure", valid_type=CifData)
-        spec.input("zeopp_probe_radius", valid_type=Float)
         spec.input("pressure", valid_type=Float)
-        spec.input("number_runs", valid_type=Float)
 
         # zeopp
         spec.input("zeopp_code", valid_type=Code)
-        spec.input(
-            "zeopp_options", valid_type=dict, default=None, required=False, non_db=True
-        )
-        spec.input(
-            "zeopp_atomic_radii",
-            valid_type=SinglefileData,
-            default=None,
-            required=False,
-        )
+        spec.input_namespace("zeopp_options", dynamic=True, required=False, non_db=True)
+        spec.input("zeopp_atomic_radii", valid_type=SinglefileData, required=False)
 
         # raspa
         spec.input("raspa_code", valid_type=Code)
         spec.input_namespace(
             "raspa_comp", valid_type=dict, required=False, dynamic=True
         )
+
+        spec.input("zeopp_parameters", valid_type=ParameterData, required=True)
+
         spec.input(
             "raspa_parameters", valid_type=ParameterData
         )  # RASPA input parameters, assumes that system dictionary is already with structure_labels
@@ -79,12 +78,12 @@ class ConvergeLoadingWorkchain(WorkChain):
         spec.input(
             "raspa_verbosity", valid_type=Int, default=Int(10)
         )  # will put  PrintEvery to NumCycles divided by this number
-        spec.input(
-            "raspa_options", valid_type=dict, default=None, required=False
+        spec.input_namespace(
+            "raspa_options", dynamic=True, required=False, non_db=True
         )  # scheduler options for raspa
 
         # settings
-        spec.input("usecharges", valid_type=bool, default=True, required=False)
+        spec.input("usecharges", default=Bool(True), required=False, valid_type=Bool)
 
         # workflow
         spec.outline(
@@ -108,19 +107,18 @@ class ConvergeLoadingWorkchain(WorkChain):
         """Initialize variables and the pressures we want to compute"""
         self.ctx.structure = self.inputs.structure
         self.ctx.pressure = self.inputs.pressure
+        self.ctx.min_cycles = self.inputs.min_cycles
 
         # Keep track of cyles
-        self.ctx.cycles = 0
-        self.ctx.counter = 0
+        self.ctx.cycles = -1
+        self.ctx.counter = -1
 
         # Set up dictionaries, we want to record the progress of the simulation
         self.ctx.raspa_comp = AttributeDict(self.inputs.raspa_comp)
-        self.ctx.loading = DefaultsDict(list)
-        self.ctx.loading_dev = DefaultsDict(list)
-        self.ctx.enthalpy_of_adsorption = DefaultsDict(list)
-        self.ctx.enthalpy_of_adsorption_dev = DefaultsDict(list)
-        self.ctx.adsorbate_density_average = DefaultsDict(list)
-        self.ctx.adsorbate_density_dev = DefaultsDict(list)
+        self.ctx.loading = defaultdict(list)
+        self.ctx.loading_dev = defaultdict(list)
+        self.ctx.adsorbate_density_average = defaultdict(list)
+        self.ctx.adsorbate_density_dev = defaultdict(list)
         self.ctx.enthalpy_of_adsorption_average = []
         self.ctx.enthalpy_of_adsorption_dev = []
 
@@ -148,9 +146,13 @@ class ConvergeLoadingWorkchain(WorkChain):
         self.ctx.ads_ads_vdw_energy_average = []
         self.ctx.ads_ads_vdw_energy_dev = []
 
+        # Keeping track of adsorption enthapies
+        self.ctx.enthalpy_of_adsorption_average = []
+        self.ctx.enthalpy_of_adsorption_dev = []
+
         self.ctx.raspa_parameters = deepcopy(self.inputs.raspa_parameters.get_dict())
 
-        if self.inputs._usecharges:
+        if self.inputs.usecharges:
             self.ctx.raspa_parameters["ChargeMethod"] = "Ewald"
             self.ctx.raspa_parameters["EwaldPrecision"] = 1e-6
             self.ctx.raspa_parameters["GeneralSettings"][
@@ -161,6 +163,9 @@ class ConvergeLoadingWorkchain(WorkChain):
 
         self.ctx.restart_raspa_calc = None
 
+        self.ctx.zeopp_options = self.inputs.zeopp_options
+        self.ctx.raspa_options = self.inputs.raspa_options
+
     def run_zeopp(self):
         """Function that performs zeo++ volpo, sa and block calculations."""
         for key, value in self.ctx.raspa_comp.items():
@@ -168,23 +173,22 @@ class ConvergeLoadingWorkchain(WorkChain):
                 comp_name = value.name
                 probe_radius = value.radius
                 params = {
-                    "ha": True,
+                    "ha": self.inputs.zeopp_parameters["accuracy"],
                     "sa": [
                         probe_radius,
                         probe_radius,
+                        self.inputs.zeopp_parameters["sa_samples"],
                         self.inputs.structure.label + "_" + comp_name + ".sa",
                     ],
-                    # 100 samples / Ang^3: accurate for all the structures
                     "block": [
                         probe_radius,
-                        100,
+                        self.inputs.zeopp_parameters["block_samples"],
                         self.inputs.structure.label + "_" + comp_name + ".block",
                     ],
-                    # 100k samples, may need more for structures bigger than 30x30x30
                     "volpo": [
                         probe_radius,
                         probe_radius,
-                        100000,
+                        self.inputs.zeopp_parameters["volpo_samples"],
                         self.inputs.structure.label + "_" + comp_name + ".volpo",
                     ],
                 }
@@ -194,7 +198,7 @@ class ConvergeLoadingWorkchain(WorkChain):
                     "structure": self.inputs.structure,
                     "parameters": NetworkParameters(dict=params).store(),
                     "metadata": {
-                        "options": self.inputs._zeopp_options,
+                        "options": self.ctx.zeopp_options,
                         "label": "ZeoppVolpoBlock",
                         "description": "Zeo++ calculation (sa, volpo, block) for structure {}".format(
                             self.inputs.structure.label
@@ -214,10 +218,10 @@ class ConvergeLoadingWorkchain(WorkChain):
                 zeopp_label = "zeopp_{}".format(comp_name)
                 self.report(
                     "pk: {} | Running Zeo++ volpo, sa and block calculations".format(
-                        zeopp_full.pid
+                        zeopp_full.pk
                     )
                 )
-                return self.to_context(**{zeopp_label: zeopp_full})
+                return ToContext(**{zeopp_label: zeopp_full})
 
     def inspect_zeopp_calc(self):
         """Fail early if already Zeo++ fails. Extract blocked pockets."""
@@ -317,20 +321,20 @@ class ConvergeLoadingWorkchain(WorkChain):
                     "IdentityChangesList"
                 ] = [i for i in range(len(list(self.inputs.raspa_comp)))]
 
-        cutoff = self.ctx.parameters["GeneralSettings"]["CutOff"]
+        cutoff = self.ctx.raspa_parameters["GeneralSettings"]["CutOff"]
         self.ctx.ucs = multiply_unit_cell(self.inputs.structure, cutoff * 2)
-        self.ctx.raspa_parameters["GeneralSettings"]["UnitCells"] = "{} {} {}".format(
-            self.ctx.ucs[0], self.ctx.ucs[1], self.ctx.ucs[2]
-        )
+        self.ctx.raspa_parameters["System"][self.inputs.structure.label][
+            "UnitCells"
+        ] = "{} {} {}".format(self.ctx.ucs[0], self.ctx.ucs[1], self.ctx.ucs[2])
 
         self.ctx.raspa_parameters["GeneralSettings"]["PrintEvery"] = int(
             self.ctx.raspa_parameters["GeneralSettings"]["NumberOfCycles"]
-            / self.input.raspa_verbosity
+            / self.inputs.raspa_verbosity
         )
 
         self.ctx.raspa_parameters["GeneralSettings"]["PrintPropertiesEvery"] = int(
             self.ctx.raspa_parameters["GeneralSettings"]["NumberOfCycles"]
-            / self.input.raspa_verbosity
+            / self.inputs.raspa_verbosity
         )
 
         self.ctx.raspa_parameters_0 = deepcopy(
@@ -347,7 +351,7 @@ class ConvergeLoadingWorkchain(WorkChain):
             )
         )
 
-        if self.ctx.counter == 0:
+        if self.ctx.counter < 1:
             return True
 
         # First check is cycles > min cycles
@@ -375,7 +379,7 @@ class ConvergeLoadingWorkchain(WorkChain):
                     else:
                         converged.append(False)
 
-            if all(should_run):
+            if all(converged):
                 return False  # all components are converged
             else:
                 return True
@@ -384,7 +388,7 @@ class ConvergeLoadingWorkchain(WorkChain):
 
     def run_first_gcmc(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""
-        self.ctx.raspa_parameters_0["GeneralSettings"][
+        self.ctx.raspa_parameters["System"][self.inputs.structure.label][
             "ExternalPressure"
         ] = self.ctx.pressure
 
@@ -392,10 +396,10 @@ class ConvergeLoadingWorkchain(WorkChain):
         # Create the input dictionary
         inputs = {
             "code": self.inputs.raspa_code,
-            "framework": self.ctx.structure,
+            "framework": {self.inputs.structure.label: self.ctx.structure},
             "parameters": parameters,
             "metadata": {
-                "options": self.inputs._raspa_options,
+                "options": self.ctx.raspa_options,
                 "label": "run_first_loading_raspa",
                 "description": "first RASPA calculation in ConvergeLoadingWorkchain for {}".format(
                     self.inputs.structure.label
@@ -405,12 +409,12 @@ class ConvergeLoadingWorkchain(WorkChain):
         inputs["block_pocket"] = self.ctx.blocked_pockets
 
         # Create the calculation process and launch it
-        gcmc = self.submit(RaspaConvergeWorkChain, **inputs)
+        gcmc = self.submit(RaspaCalculation, **inputs)
         self.ctx.counter += 1
         self.ctx.cycles += self.ctx.raspa_parameters["GeneralSettings"][
             "NumberOfCycles"
         ]
-        self.report("pk: {} | Running first RASPA GCMC".format(gcmc.pid))
+        self.report("pk: {} | Running first RASPA GCMC".format(gcmc.pk))
         return ToContext(raspa_loading=gcmc)
 
     def run_loading_raspa(self):
@@ -428,10 +432,10 @@ class ConvergeLoadingWorkchain(WorkChain):
         # Create the input dictionary
         inputs = {
             "code": self.inputs.raspa_code,
-            "framework": self.ctx.structure,
+            "framework": {self.inputs.structure.label: self.ctx.structure},
             "parameters": parameters,
             "metadata": {
-                "options": self.inputs._raspa_options,
+                "options": self.ctx.raspa_options,
                 "label": "run_loading_raspa",
                 "description": "RASPA #{} calculation in ConvergeLoadingWorkchain for {}".format(
                     self.ctx.counter, self.inputs.structure.label
@@ -444,11 +448,11 @@ class ConvergeLoadingWorkchain(WorkChain):
             inputs["retrieved_parent_folder"] = self.ctx.restart_raspa_calc
 
         # Create the calculation process and launch it
-        gcmc = self.submit(RaspaConvergeWorkChain, **inputs)
+        gcmc = self.submit(RaspaCalculation, **inputs)
 
         self.report(
             "pk: {} | Running RASPA GCMC for the {} time".format(
-                gcmc.pid, self.ctx.counter
+                gcmc.pk, self.ctx.counter
             )
         )
         return ToContext(raspa_loading=gcmc)
@@ -459,19 +463,27 @@ class ConvergeLoadingWorkchain(WorkChain):
             if key in list(self.inputs.raspa_comp):
                 comp_name = value.name
                 mol_frac = value.mol_fraction
-                self.ctx.loading[comp_name] = output_gcmc[self.inputs.structure.label][
-                    "components"
-                ][comp_name]["loading_absolute_average"]
-                self.ctx.loading_dev[comp_name] = output_gcmc[
-                    self.inputs.structure.label
-                ]["components"][comp_name]["loading_absolute_dev"]
+                self.ctx.loading[comp_name].append(
+                    output_gcmc[self.inputs.structure.label]["components"][comp_name][
+                        "loading_absolute_average"
+                    ]
+                )
+                self.ctx.loading_dev[comp_name].append(
+                    output_gcmc[self.inputs.structure.label]["components"][comp_name][
+                        "loading_absolute_dev"
+                    ]
+                )
 
-                self.ctx.adsorbate_density_average[comp_name] = output_gcmc[
-                    self.inputs.structure.label
-                ]["components"][comp_name]["adsorbate_density_average"]
-                self.ctx.adsorbate_density_dev[comp_name] = output_gcmc[
-                    self.inputs.structure.label
-                ]["components"][comp_name]["adsorbate_density_dev"]
+                self.ctx.adsorbate_density_average[comp_name].append(
+                    output_gcmc[self.inputs.structure.label]["components"][comp_name][
+                        "adsorbate_density_average"
+                    ]
+                )
+                self.ctx.adsorbate_density_dev[comp_name].append(
+                    output_gcmc[self.inputs.structure.label]["components"][comp_name][
+                        "adsorbate_density_dev"
+                    ]
+                )
 
             # Keeping track of total energies
             self.ctx.total_energy_average.append(
@@ -549,6 +561,18 @@ class ConvergeLoadingWorkchain(WorkChain):
             self.ctx.ads_ads_vdw_energy_dev.append(
                 output_gcmc[self.inputs.structure.label]["general"][
                     "ads_ads_vdw_energy_dev"
+                ]
+            )
+
+            self.ctx.enthalpy_of_adsorption_average.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "enthalpy_of_adsorption_average"
+                ]
+            )
+
+            self.ctx.enthalpy_of_adsorption_dev.append(
+                output_gcmc[self.inputs.structure.label]["general"][
+                    "enthalpy_of_adsorption_dev"
                 ]
             )
 
@@ -646,6 +670,13 @@ class ConvergeLoadingWorkchain(WorkChain):
 
         result_dict["ads_ads_vdw_energy_average"] = self.ctx.ads_ads_vdw_energy_average
         result_dict["ads_ads_vdw_energy_dev"] = self.ctx.ads_ads_vdw_energy_dev
+
+        result_dict[
+            "enthalpy_of_adsorption_average"
+        ] = self.ctx.enthalpy_of_adsorption_average
+        result_dict["enthalpy_of_adsorption_dev"] = self.ctx.enthalpy_of_adsorption_dev
+        result_dict["enthalpy_of_adsorption_unit"] = "K"
+
         result_dict["uc_multipliers"] = self.ctx.ucs
 
         # Zeo++
@@ -682,8 +713,8 @@ class ConvergeLoadingWorkchain(WorkChain):
                 result_dict["gpoav"][comp_name] = output_zeo["POAV_cm^3/g"]
                 result_dict["gasa"][comp_name] = output_zeo["ASA_m^2/g"]
                 result_dict["vasa"][comp_name] = output_zeo["ASA_m^2/cm^3"]
-                result_dict["gasa"][comp_name] = output_zeo["NASA_m^2/g"]
-                result_dict["gnasa"][comp_name] = output_zeo["NASA_m^2/cm^3"]
+                result_dict["gnasa"][comp_name] = output_zeo["NASA_m^2/g"]
+                result_dict["vnasa"][comp_name] = output_zeo["NASA_m^2/cm^3"]
                 result_dict["channel_surface_area"][comp_name] = output_zeo[
                     "Channel_surface_area_A^2"
                 ]
