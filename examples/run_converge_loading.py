@@ -5,7 +5,6 @@ import os
 import sys
 import click
 
-from aiida.common import NotExistent
 from aiida.plugins import DataFactory
 from aiida.orm import Code, Dict, Float
 from aiida.engine import submit
@@ -25,17 +24,15 @@ structure.label = structure_label
 
 
 @click.command("cli")
-@click.argument("raspa_code")
-@click.argument("zeopp_code")
-def main(raspa_code, zeopp_code, submit):
-    zeopp_code = Code.get_from_string(
-        zeopp_codename, expected_code_type="zeopp.network"
-    )
-    raspa_code = Code.get_from_string(raspa_codename, expected_code_type="raspa")
+@click.argument("raspa_code_string")
+@click.argument("zeopp_code_string")
+def main(raspa_code_string, zeopp_code_string):
+    zeopp_code = Code.get_from_string(zeopp_code_string)
+    raspa_code = Code.get_from_string(raspa_code_string)
 
     zeopp_atomic_radii_file = SinglefileData(
         file=os.path.abspath("../test_files/zeopp.rad")
-    )  # Radius file for the framework
+    )
 
     zeopp_options = {
         "resources": {"num_machines": 1, "tot_num_mpiprocs": 1},
@@ -81,6 +78,15 @@ def main(raspa_code, zeopp_code, submit):
         }
     )
 
+    zeopp_parameters = Dict(
+        dict={
+            "block_samples": 100,
+            "volpo_samples": 100,
+            "sa_samples": 100,
+            "accuracy": "DEF",
+        }
+    )
+
     submit(
         ConvergeLoadingWorkchain,
         structure=structure,
@@ -89,21 +95,15 @@ def main(raspa_code, zeopp_code, submit):
         min_cycles=Int(1500),
         zeopp_options=zeopp_options,
         raspa_options=raspa_options,
+        raspa_parameters=raspa_parameters,
+        zeopp_parameters=zeopp_parameters,
         raspa_code=raspa_code,
         raspa_comp=raspa_comp,
         zeopp_atomic_radii=zeopp_atomic_radii_file,
         metadata={
             "label": "MultiCompIsothermWorkChain",
-            "dry_run": True,
             "description": "Test for <{}>".format(structure.label),
         },
-    )
-    print(
-        (
-            "submitted calculation; calc=Calculation(uuid='{}') # ID={}".format(
-                calc.uuid, calc.dbnode.pk
-            )
-        )
     )
 
 
