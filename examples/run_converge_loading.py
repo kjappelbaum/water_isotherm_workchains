@@ -53,7 +53,7 @@ def main(raspa_code_string, zeopp_code_string):
             "name": "methane",
             "mol_fraction": 1.0,
             "mol_def": "TraPPE",
-            "conv_threshold": 0.10,
+            "conv_threshold": 5,
             "radius": 1.4,
             "singlebead": True,
         }
@@ -63,11 +63,11 @@ def main(raspa_code_string, zeopp_code_string):
         dict={
             "GeneralSettings": {
                 "SimulationType": "MonteCarlo",
-                "NumberOfCycles": 1000,
-                "NumberOfInitializationCycles": 1000,
+                "NumberOfCycles": 10000,
+                "NumberOfInitializationCycles": 30000,
                 "PrintEvery": 1000,
                 "CutOff": 12.0,
-                "WriteBinaryRestartFileEvery": 200,
+                "WriteBinaryRestartFileEvery": 5000,
                 "Forcefield": "GenericMOFs",
                 "RemoveAtomNumberCodeFromLabel": True,
             },
@@ -91,7 +91,7 @@ def main(raspa_code_string, zeopp_code_string):
         ConvergeLoadingWorkchain,
         structure=structure,
         zeopp_code=zeopp_code,
-        pressure=Float(1e5),
+        pressure=Float(5e5),
         min_cycles=Int(1500),
         zeopp_options=zeopp_options,
         raspa_options=raspa_options,
