@@ -110,7 +110,7 @@ Zn_                    lennard-jones                 62.4056     2.4616
 Zr_                    lennard-jones                 34.7257     2.7832
 Ow      lennard-jones   75.854     3.1560
 Mw      none
-Hw      jones           1.26        1.4476
+Hw      lennard-jones           1.26        1.4476
 Lw      none
 # general mixing rule for Lennard-Jones
 Lorentz-Berthelot
