@@ -41,24 +41,25 @@ def main(codelabel, submit):
                 "Forcefield": "UFF-SPC-TC",
                 "EwaldPrecision": 1e-6,
                 "WriteBinaryRestartFileEvery": 200,
-                "Ensemble": "NVT",
+                "Ensemble": "NPT", # NPT because NVT masks density problems
             },
             "System": {
                 "box_25_angstroms": {
                     "type": "Box",
                     "BoxLengths": "24.83 24.83 24.83",
                     "ExternalTemperature": 298.0,
+                    "ExternalPressure":  101325.01, # 1 atm
                     "ComputeRDF": "yes",
                     "WriteRDFEvery": 1000,
                 }
             },
             "Component": {
-                "water": {
+                "spc": {
                     "MoleculeDefinition": "spc",
                     "TranslationProbability": 0.5,
                     "RotationProbability": 0.5,
                     "ReinsertionProbability": 1.0,
-                    "CreateNumberOfMolecules": {"box_25_angstroms": 0},
+                    "CreateNumberOfMolecules": {"box_25_angstroms": 512},
                 }
             },
         }
@@ -67,19 +68,17 @@ def main(codelabel, submit):
     # resources
     options = {
         "resources": {"num_machines": 1, "num_mpiprocs_per_machine": 1},
-        "max_wallclock_seconds": 1 * 30 * 60,  # 30 min
+        "max_wallclock_seconds": 5 * 60 * 60,  # 30 min
         "withmpi": False,
     }
 
-    settings = Dict(
-        dict={"additional_retrieve_list": ["RadialDistributionFunctions/System_0/*"]}
-    )
+    settings = Dict(dict={"additional_retrieve_list": ["RadialDistributionFunctions/System_0/*"]})
 
     # collecting all the inputs
     inputs = {
         "parameters": parameters,
         "code": code,
-        "settings": setttings,
+        "settings": settings,
         "metadata": {"options": options, "dry_run": False, "store_provenance": True},
     }
 
