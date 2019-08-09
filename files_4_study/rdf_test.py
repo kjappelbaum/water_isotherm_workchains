@@ -34,14 +34,16 @@ def main(codelabel, submit):
         dict={
             "GeneralSettings": {
                 "SimulationType": "MolecularDynamics",
-                "NumberOfCycles": 5000,
-                "NumberOfInitializationCycles": 1000,
-                "NumberOfEquilibrationCycles": 2000,
+                "NumberOfCycles": 500000,
+                "NumberOfInitializationCycles": 10000,
+                "NumberOfEquilibrationCycles": 50000,
                 "PrintEvery": 1000,
                 "Forcefield": "UFF-SPC-TC",
                 "EwaldPrecision": 1e-6,
                 "WriteBinaryRestartFileEvery": 200,
                 "Ensemble": "NPT", # NPT because NVT masks density problems
+                "TimeStep":   0.001,
+                "CutOff": 12,
             },
             "System": {
                 "box_25_angstroms": {
