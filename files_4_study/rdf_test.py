@@ -33,17 +33,14 @@ def main(codelabel, submit):
     parameters = Dict(
         dict={
             "GeneralSettings": {
-                "SimulationType": "MolecularDynamics",
+                "SimulationType": "MonteCarlo",
                 "NumberOfCycles": 500000,
-                "NumberOfInitializationCycles": 10000,
-                "NumberOfEquilibrationCycles": 50000,
-                "PrintEvery": 1000,
+                "NumberOfInitializationCycles": 50000,
+                "PrintEvery": 10000,
                 "Forcefield": "UFF-SPC-TC",
                 "EwaldPrecision": 1e-6,
                 "WriteBinaryRestartFileEvery": 200,
-                "Ensemble": "NPT", # NPT because NVT masks density problems
-                "TimeStep":   0.001,
-                "CutOff": 10, # in the fitting procedures commonly truncated around 9 A 
+                "CutOff": 10, # in the fitting procedures commonly truncated around 9 A
             },
             "System": {
                 "box_25_angstroms": {
@@ -53,6 +50,7 @@ def main(codelabel, submit):
                     "ExternalPressure":  101325.01, # 1 atm
                     "ComputeRDF": "yes",
                     "WriteRDFEvery": 1000,
+                    "VolumeChangeProbability":  0.05, # NPT to compute the density 
                 }
             },
             "Component": {
