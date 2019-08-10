@@ -1,0 +1,23 @@
+# critical constants: Temperature [T], Pressure [Pa], and Acentric factor [-] (https://www.sciencedirect.com/book/9780323286596/thermophysical-properties-of-chemicals-and-hydrocarbons)
+647.14
+22055000.0
+0.3449
+#Number Of Atoms
+3
+# Number of groups
+1
+# main-group
+rigid
+# number of atoms
+3
+# atomic positions
+0 Ow             0.0000   0.0000   0.0000
+1 Hw            -0.8164904309201172   0.5773589665155304   0.0000
+2 Hw             0.8164904309201172   0.5773589665155304   0.0000
+# Chiral centers Bond  BondDipoles Bend  UrayBradley InvBend  Torsion Imp. Torsion Bond/Bond Stretch/Bend Bend/Bend Stretch/Torsion Bend/Torsion IntraVDW IntraCoulomb
+               0    2            0    0            0       0        0            0         0            0         0               0            0        0            0
+# Bond stretch: atom n1-n2, type, parameters
+0 1 RIGID_BOND
+0 2 RIGID_BOND
+# Number of config moves
+0

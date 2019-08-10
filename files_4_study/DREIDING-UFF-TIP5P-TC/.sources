@@ -1,0 +1,5 @@
+http://www.sklogwiki.org/SklogWiki/index.php/TIP5P-E_model_of_water
+https://github.com/numat/RASPA2/blob/master/examples/Basic/RDF_of_Water_in_Box_MC/Tip5p.def
+http://www1.lsbu.ac.uk/water/water_models.html
+J Chem Phys, 120, 6085, 2004 
+note that the epsilon changes from TIP5P in RASPA to  value of TIP5P-Ew

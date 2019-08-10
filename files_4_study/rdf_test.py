@@ -17,7 +17,6 @@ from aiida_raspa.calculations import RaspaCalculation
 # data objects
 CifData = DataFactory("cif")  # pylint: disable=invalid-name
 
-
 forcefields = [
     ("UFF-OPC-TC", "opc"),
     ("UFF-OPC3-TC", "opc3"),
