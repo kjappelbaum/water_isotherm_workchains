@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Test RDF of bulk water in box for different water models."""
+"""
+Test RDF and density of bulk water in box for different water models to validate
+FF definition and AiiDA installation.
+"""
 
 from __future__ import print_function
 from __future__ import absolute_import
@@ -25,7 +28,7 @@ forcefields = [
     ("UFF-ST2-TC", "st2"),
     ("UFF-TIP3P-TC", "tip3p"),
     ("UFF-TIP4P-2005-TC", "tip4p2005"),
-    ("UFF-TIP4P-Ew", "tip4p-eq"),
+    ("UFF-TIP4P-Ew", "tip4p-ew"),
     ("UFF-TIP5P-TC", "tip5p"),
     ("UFF-TIP7P-TC", "tip7p")
 ]
@@ -46,12 +49,12 @@ def main(codelabel, submit):
         dict={
             "GeneralSettings": {
                 "SimulationType": "MonteCarlo",
-                "NumberOfCycles": 500000,
+                "NumberOfCycles": 250000,
                 "NumberOfInitializationCycles": 50000,
                 "PrintEvery": 10000,
                 "Forcefield": "UFF-SPC-TC",
                 "EwaldPrecision": 1e-6,
-                "WriteBinaryRestartFileEvery": 200,
+                "WriteBinaryRestartFileEvery": 20000,
                 "CutOff": 10, # in the fitting procedures commonly truncated around 9 A
             },
             "System": {
@@ -61,7 +64,7 @@ def main(codelabel, submit):
                     "ExternalTemperature": 298.0,
                     "ExternalPressure":  101325.01, # 1 atm
                     "ComputeRDF": "yes",
-                    "WriteRDFEvery": 1000,
+                    "WriteRDFEvery": 50000,
                     "VolumeChangeProbability":  0.05, # NPT to compute the density
                 }
             },
@@ -80,7 +83,7 @@ def main(codelabel, submit):
     # resources
     options = {
         "resources": {"num_machines": 1, "num_mpiprocs_per_machine": 1},
-        "max_wallclock_seconds": 5 * 60 * 60,  # 30 min
+        "max_wallclock_seconds": 72 * 60 * 60,  # 30 min
         "withmpi": False,
     }
 
