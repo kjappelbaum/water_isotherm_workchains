@@ -9,7 +9,7 @@ import sys
 import click
 
 from aiida.common import NotExistent
-from aiida.engine import run_get_pk, run
+from aiida.engine import run_get_pk, run, submit
 from aiida.orm import Code, Dict
 from aiida.plugins import DataFactory
 from aiida_raspa.calculations import RaspaCalculation
@@ -17,6 +17,19 @@ from aiida_raspa.calculations import RaspaCalculation
 # data objects
 CifData = DataFactory("cif")  # pylint: disable=invalid-name
 
+
+forcefields = [
+    ("UFF-OPC-TC", "opc"),
+    ("UFF-OPC3-TC", "opc3"),
+    ("UFF-SPC-TC", "spc"),
+    ("UFF-SPCE-TC", "spce"),
+    ("UFF-ST2-TC", "st2"),
+    ("UFF-TIP3P-TC", "tip3p"),
+    ("UFF-TIP4P-2005-TC", "tip4p2005"),
+    ("UFF-TIP4P-Ew", "tip4p-eq"),
+    ("UFF-TIP5P-TC", "tip5p"),
+    ("UFF-TIP7P-TC", "tip7p")
+]
 
 @click.command("cli")
 @click.argument("codelabel")
@@ -50,7 +63,7 @@ def main(codelabel, submit):
                     "ExternalPressure":  101325.01, # 1 atm
                     "ComputeRDF": "yes",
                     "WriteRDFEvery": 1000,
-                    "VolumeChangeProbability":  0.05, # NPT to compute the density 
+                    "VolumeChangeProbability":  0.05, # NPT to compute the density
                 }
             },
             "Component": {
@@ -83,7 +96,7 @@ def main(codelabel, submit):
     }
 
     if submit:
-        res, pk = run_get_pk(RaspaCalculation, **inputs)
+        submit(RaspaCalculation, **inputs)
         print("calculation pk: ", pk)
     else:
         print("Generating test input ...")
