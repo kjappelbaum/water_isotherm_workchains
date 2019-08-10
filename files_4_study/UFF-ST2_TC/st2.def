@@ -12,10 +12,10 @@ rigid
 5
 # atomic positions (xyz)
 0 Ow       0.0                     0.0                     0.0
-1 Hw      -0.75695032726366118157  0.81649043092011720     0.0
-2 Hw       0.75695032726366118157  0.8164904309201172      0.0
-3 Mw       0.0                     0.46188717321242434  -0.6531923447360938
-4 Mw       0.0                     0.46188717321242434  0.6531923447360938
+1 Hw       0.8164904309201172, 0.5773589665155304     0.0
+2 Hw       -0.8164904309201172, 0.5773589665155304      0.0
+3 Mw       0.0                     -0.46188717321242434  -0.6531923447360938
+4 Mw       0.0                     -0.46188717321242434  0.6531923447360938
 # Chiral centers Bond  BondDipoles Bend  UrayBradley InvBend  Torsion Imp. Torsion Bond/Bond Stretch/Bend Bend/Bend Stretch/Torsion Bend/Torsion IntraVDW IntraCoulomb
                0    4            0    0            0       0        0            0         0            0         0               0            0        0            0
 # Bond stretch: atom n1-n2, type, parameters

@@ -43,7 +43,7 @@ def main(codelabel, submit):
                 "WriteBinaryRestartFileEvery": 200,
                 "Ensemble": "NPT", # NPT because NVT masks density problems
                 "TimeStep":   0.001,
-                "CutOff": 12,
+                "CutOff": 10, # in the fitting procedures commonly truncated around 9 A 
             },
             "System": {
                 "box_25_angstroms": {
