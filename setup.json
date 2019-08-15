@@ -3,7 +3,7 @@
     "name": "water_isotherm_workchains",
     "author": "Kevin M. Jablonka, Daniele Ongari",
     "author_email": "kevin.jablonka@epfl.ch",
-    "description": "AiiDA workflows for advanced sampling of isotherms",
+    "description": "AiiDA workflows benchmarking water models",
     "url": "https://github.com/kjappelbaum/water_isotherm_workchains",
     "license": "MIT License",
     "classifiers": [

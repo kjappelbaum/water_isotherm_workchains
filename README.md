@@ -10,7 +10,7 @@
 
 ## Usage
 1. Read the notes
-2. pip install the workflows with `pip install git+https://github.com/kjappelbaum/water_isotherm_workchains`   
+2. pip install the workflows with `pip install git+https://github.com/kjappelbaum/water_isotherm_workchains`
 3. restart the daemon `verdi daemon restart`
 
 to use the examples it might be easier to

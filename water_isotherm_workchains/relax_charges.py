@@ -18,6 +18,12 @@ CifData = DataFactory('cif')  # pylint: disable=invalid-name
 
 default_ddec_options = {  # pylint: disable=invalid-name
     'resources': {'num_machines': 1, 'num_mpiprocs_per_machine': 1},
+    'max_wallclock_seconds': 6 * 60 * 60,
+    'withmpi': False,
+}
+
+default_eqeq_options = {  # pylint: disable=invalid-name
+    'resources': {'num_machines': 1, 'num_mpiprocs_per_machine': 1},
     'max_wallclock_seconds': 3 * 60 * 60,
     'withmpi': False,
 }
@@ -39,15 +45,27 @@ default_ddec_params = Dict(  # pylint: disable=invalid-name
 ).store()
 
 
+default_eqeq_params = Dict(  # pylint: disable=invalid-name
+    dict={
+        'net charge': 0.0,
+        'charge type': 'DDEC6',
+        'periodicity along A, B, and C vectors': [True, True, True],
+        'compute BOs': False,
+        'atomic densities directory complete path': '/home/yakutovi/chargemol_09_26_2017/atomic_densities/',
+        'input filename': 'valence_density',
+    }
+).store()
+
+
 class Cp2kRelaxChargesWorkChain(WorkChain):
     """A workchain that computes DDEC and EqEq charges using D. Ongari's multistage CP2K workchain"""
+
     @classmethod
     def define(cls, spec):
         """Define workflow specification."""
         super(Cp2kRelaxChargesWorkChain, cls).define(spec)
 
-        spec.expose_inputs(Cp2kMultistageWorkChain,
-                           namespace='cp2k_multistage')
+        spec.expose_inputs(Cp2kMultistageWorkChain, namespace='cp2k_multistage')
 
         # DDEC
         spec.input('ddec_code', valid_type=Code)
@@ -78,12 +96,10 @@ class Cp2kRelaxChargesWorkChain(WorkChain):
                              non_db=True)
 
         # specify the chain of calculations to be performed
-        spec.outline(cls.setup, cls.select_protocol, cls.run_cp2k,
-                     cls.prepare_ddec, cls.run_ddec, cls.run_eqeq,
+        spec.outline(cls.setup, cls.select_protocol, cls.run_cp2k, cls.prepare_ddec, cls.run_ddec, cls.run_eqeq,
                      cls.return_results)
 
-        spec.expose_outputs(Cp2kMultistageWorkChain,
-                            include=('output_structure', 'remote_folder'))
+        spec.expose_outputs(Cp2kMultistageWorkChain, include=('output_structure', 'remote_folder'))
 
         # specify the outputs of the workchain
         spec.output('output_structure_ddec', valid_type=CifData, required=True)
@@ -91,46 +107,43 @@ class Cp2kRelaxChargesWorkChain(WorkChain):
 
     def setup(self):
         """Perform initial setup"""
-        self.ctx.base_inp = AttributeDict(
-            self.exposed_inputs(Cp2kMultistageWorkChain, 'cp2k_multistage'))
+        self.ctx.base_inp = AttributeDict(self.exposed_inputs(Cp2kMultistageWorkChain, 'cp2k_multistage'))
 
         self.ctx.inp_structure = self.ctx.base_inp.base.cp2k.structure
 
     def select_protocol(self):
         """selects relaxation protocol with some simple heuristics"""
         # check if a lot of electrons
-        total_number_electrons = self.ctx.inp_structure.get_pymatgen(
-        )._nelectrons
+        total_number_electrons = self.ctx.inp_structure.get_pymatgen()._nelectrons
 
         if total_number_electrons > 2000:
-            self.ctx.protocol = Str("large")
+            self.ctx.protocol = Str('large')
+            self.report("will use protocol tag large, total number of electrons: {}".format(total_number_electrons))
         else:
-            self.ctx.protocol = Str("std")
+            self.ctx.protocol = Str('std')
+            self.report("will use standard protocol, total number of electrons: {}".format(total_number_electrons))
 
     def run_cp2k(self):
         """Compute charge-density with CP2K"""
-        parameters = Dict(
-            dict={
-                'FORCE_EVAL': {
-                    'DFT': {
-                        'PRINT': {
-                            'E_DENSITY_CUBE': {
-                                '_': 'ON',
-                                'STRIDE': '1 1 1'
-                            }
+        parameters = Dict(dict={
+            'FORCE_EVAL': {
+                'DFT': {
+                    'PRINT': {
+                        'E_DENSITY_CUBE': {
+                            '_': 'ON',
+                            'STRIDE': '1 1 1'
                         }
                     }
                 }
-            }).store()
+            }
+        }).store()
 
         inputs = deepcopy(self.ctx.base_inp)
         # input settings for the charge density cube
         inputs['base']['cp2k']['parameters'] = parameters
         inputs['protocol_tag'] = self.ctx.protocol
         running = self.submit(Cp2kMultistageWorkChain, **inputs)
-        self.report(
-            'pk: {} | Running Cp2kMultistageWorkChain to compute the charge-density'
-            .format(running.pk))
+        self.report('pk: {} | Running Cp2kMultistageWorkChain to compute the charge-density'.format(running.pk))
         return ToContext(charge_density_calc=running)
 
     def prepare_ddec(self):
@@ -142,13 +155,9 @@ class Cp2kRelaxChargesWorkChain(WorkChain):
         core_e = extract_core_electrons(Str(last_res_repo_path))
         # prepare input dictionary
         self.ctx.ddec_inputs = {
-            'code':
-            self.inputs.ddec_code,
-            'charge_density_folder':
-            self.ctx.charge_density_calc.outputs.remote_folder.creator.outputs.
-            remote_folder,
-            'parameters':
-            merge_Dict(self.inputs.ddec_parameters, core_e),
+            'code': self.inputs.ddec_code,
+            'charge_density_folder': self.ctx.charge_density_calc.outputs.remote_folder.creator.outputs.remote_folder,
+            'parameters': merge_Dict(self.inputs.ddec_parameters, core_e),
             'metadata': {
                 'options': self.inputs.ddec_options,
                 'label': 'DDEC calculation',
@@ -159,9 +168,7 @@ class Cp2kRelaxChargesWorkChain(WorkChain):
         """Compute ddec point charges from precomputed charge-density."""
         # Create the calculation process and launch it
         running = self.submit(DdecCalculation, **self.ctx.ddec_inputs)
-        self.report(
-            'pk: {} | Running ddec to compute point charges based on the charge-density'
-            .format(running.pk))
+        self.report('pk: {} | Running ddec to compute point charges based on the charge-density'.format(running.pk))
         return ToContext(ddec_calc=running)
 
     def return_results(self):
