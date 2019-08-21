@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# pylint:disable=invalid-name
 """
 Test RDF and density of bulk water in box for different water models to validate
 FF definition and AiiDA installation.
@@ -7,13 +8,12 @@ FF definition and AiiDA installation.
 
 from __future__ import print_function
 from __future__ import absolute_import
-import os
 import sys
 import time
 import click
 
 from aiida.common import NotExistent
-from aiida.engine import run_get_pk, run, submit
+from aiida.engine import submit
 from aiida.orm import Code, Dict
 from aiida.plugins import DataFactory
 from aiida_raspa.calculations import RaspaCalculation
@@ -21,18 +21,10 @@ from aiida_raspa.calculations import RaspaCalculation
 # data objects
 CifData = DataFactory('cif')  # pylint: disable=invalid-name
 
-forcefields = [
-    #("UFF-OPC-TC", "opc"),
-    ('UFF-OPC3-TC', 'opc3'),
-    #("UFF-SPC-TC", "spc"),
-    #("UFF-SPCE-TC", "spce"),
-    #("UFF-ST2-TC", "st2"),
-    #("UFF-TIP3P-TC", "tip3p"),
-    ('UFF-TIP4P-2005-TC', 'tip4p2005'),
-    ('UFF-TIP4P-Ew-TC', 'tip4p-ew'),
-    #("UFF-TIP5P-TC", "tip5p"),
-    ('UFF-TIP7P-TC', 'tip7p')
-]
+forcefields = [('DREIDING-UFF-OPC-TC', 'opc'), ('DREIDING-UFF-OPC3-TC', 'opc3'), ('DREIDING-UFF-SPC-TC', 'spc'),
+               ('DREIDING-UFF-SPCE-TC', 'spce'), ('DREIDING-UFF-ST2-TC', 'st2'), ('DREIDING-UFF-TIP3P-TC', 'tip3p'),
+               ('DREIDING-UFF-TIP4P-2005-TC', 'tip4p2005'), ('DREIDING-UFF-TIP4P-Ew-TC', 'tip4p-ew'),
+               ('DREIDING-UFF-TIP5P-TC', 'tip5p'), ('DREIDING-UFF-TIP7P-TC', 'tip7p')]
 
 
 @click.command('cli')
@@ -52,8 +44,8 @@ def main(codelabel, run):
             dict={
                 'GeneralSettings': {
                     'SimulationType': 'MonteCarlo',
-                    'NumberOfCycles': 250000,
-                    'NumberOfInitializationCycles': 50000,
+                    'NumberOfCycles': 20000,
+                    'NumberOfInitializationCycles': 20000,
                     'PrintEvery': 10000,
                     'Forcefield': ff[0],
                     'EwaldPrecision': 1e-6,
@@ -65,7 +57,7 @@ def main(codelabel, run):
                         'type': 'Box',
                         'BoxLengths': '24.83 24.83 24.83',
                         'ExternalTemperature': 298.0,
-                        'ExternalPressure': 101325.01,  # 1 atm
+                        'ExternalPressure': 100000.00,  # 1 bar
                         'ComputeRDF': 'yes',
                         'WriteRDFEvery': 50000,
                         'VolumeChangeProbability': 0.05,  # NPT to compute the density
@@ -90,7 +82,7 @@ def main(codelabel, run):
                 'num_machines': 1,
                 'num_mpiprocs_per_machine': 1
             },
-            'max_wallclock_seconds': 72 * 60 * 60,  # 30 min
+            'max_wallclock_seconds': 72 * 60 * 60,  # 72 h
             'withmpi': False,
         }
 
@@ -103,6 +95,7 @@ def main(codelabel, run):
             'settings': settings,
             'metadata': {
                 'options': options,
+                'label': 'density-test',
                 'dry_run': False,
                 'store_provenance': True
             },
@@ -116,7 +109,7 @@ def main(codelabel, run):
             print('Generating test input ...')
             inputs['metadata']['dry_run'] = True
             inputs['metadata']['store_provenance'] = False
-            run(RaspaCalculation, **inputs)
+            submit(RaspaCalculation, **inputs)
             print('Submission test for {} successfull'.format(ff[0]))
             print("In order to actually submit, add '--run'")
 

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# ToDo add extract_core_electrons and  merge_Dict
+# pylint:disable=undefined-variable
 """DdecCp2kChargesWorkChain workchain of the AiiDA DDEC plugin"""
 from __future__ import absolute_import
 from copy import deepcopy
@@ -8,7 +10,7 @@ from aiida.engine import WorkChain, ToContext
 from aiida.orm import Dict, Code, Str
 from aiida.plugins import CalculationFactory, DataFactory
 from aiida_cp2k.workchains import Cp2kMultistageWorkChain
-from .utils import merge_Dict, extract_core_electrons
+# from .utils.utils import merge_Dict, extract_core_electrons
 
 # calculations
 DdecCalculation = CalculationFactory('ddec')  # pylint: disable=invalid-name
@@ -114,14 +116,14 @@ class Cp2kRelaxChargesWorkChain(WorkChain):
     def select_protocol(self):
         """selects relaxation protocol with some simple heuristics"""
         # check if a lot of electrons
-        total_number_electrons = self.ctx.inp_structure.get_pymatgen()._nelectrons
+        total_number_electrons = self.ctx.inp_structure.get_pymatgen()._nelectrons  # pylint:disable=protected-access
 
         if total_number_electrons > 2000:
             self.ctx.protocol = Str('large')
-            self.report("will use protocol tag large, total number of electrons: {}".format(total_number_electrons))
+            self.report('will use protocol tag large, total number of electrons: {}'.format(total_number_electrons))
         else:
             self.ctx.protocol = Str('std')
-            self.report("will use standard protocol, total number of electrons: {}".format(total_number_electrons))
+            self.report('will use standard protocol, total number of electrons: {}'.format(total_number_electrons))
 
     def run_cp2k(self):
         """Compute charge-density with CP2K"""
