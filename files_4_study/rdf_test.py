@@ -21,10 +21,12 @@ from aiida_raspa.calculations import RaspaCalculation
 # data objects
 CifData = DataFactory('cif')  # pylint: disable=invalid-name
 
-forcefields = [('DREIDING-UFF-OPC-TC', 'opc'), ('DREIDING-UFF-OPC3-TC', 'opc3'), ('DREIDING-UFF-SPC-TC', 'spc'),
-               ('DREIDING-UFF-SPCE-TC', 'spce'), ('DREIDING-UFF-ST2-TC', 'st2'), ('DREIDING-UFF-TIP3P-TC', 'tip3p'),
-               ('DREIDING-UFF-TIP4P-2005-TC', 'tip4p2005'), ('DREIDING-UFF-TIP4P-Ew-TC', 'tip4p-ew'),
-               ('DREIDING-UFF-TIP5P-TC', 'tip5p'), ('DREIDING-UFF-TIP7P-TC', 'tip7p')]
+#forcefields = [('DREIDING-UFF-OPC-TC', 'opc'), ('DREIDING-UFF-OPC3-TC', 'opc3'), ('DREIDING-UFF-SPC-TC', 'spc'),
+#               ('DREIDING-UFF-SPCE-TC', 'spce'), ('DREIDING-UFF-ST2-TC', 'st2'), ('DREIDING-UFF-TIP3P-TC', 'tip3p'),
+#               ('DREIDING-UFF-TIP4P-2005-TC', 'tip4p2005'), ('DREIDING-UFF-TIP4P-Ew-TC', 'tip4p-ew'),
+#               ('DREIDING-UFF-TIP5P-TC', 'tip5p'), ('DREIDING-UFF-TIP7P-TC', 'tip7p')]
+
+forcefields = [('DREIDING-UFF-TIP4P-Ew-TC', 'tip4p-ew'), ('DREIDING-UFF-TIP5P-TC', 'tip5p')]
 
 
 @click.command('cli')
@@ -44,8 +46,8 @@ def main(codelabel, run):
             dict={
                 'GeneralSettings': {
                     'SimulationType': 'MonteCarlo',
-                    'NumberOfCycles': 20000,
-                    'NumberOfInitializationCycles': 20000,
+                    'NumberOfCycles': 10000,
+                    'NumberOfInitializationCycles': 10000,
                     'PrintEvery': 10000,
                     'Forcefield': ff[0],
                     'EwaldPrecision': 1e-6,

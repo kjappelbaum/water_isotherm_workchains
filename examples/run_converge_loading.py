@@ -7,7 +7,7 @@ import sys
 import click
 
 from aiida.plugins import DataFactory
-from aiida.orm import Code, Dict, Float
+from aiida.orm import Code, Dict, Float, Int
 from aiida.engine import submit
 from water_isotherm_workchains.converge_loading_workchain import (
     ConvergeLoadingWorkchain,)
@@ -39,7 +39,7 @@ def main(raspa_code_string, zeopp_code_string):
             'tot_num_mpiprocs': 1
         },
         'max_memory_kb': 2000000,
-        'max_wallclock_seconds': 1 * 30 * 60,
+        'max_wallclock_seconds': 2 * 30 * 60,
         'withmpi': False,
     }
 
@@ -49,18 +49,18 @@ def main(raspa_code_string, zeopp_code_string):
             'tot_num_mpiprocs': 1
         },
         'max_memory_kb': 200000,
-        'max_wallclock_seconds': 2 * 60 * 60,
+        'max_wallclock_seconds': 72 * 60 * 60,
         'withmpi': False,
     }
 
     raspa_comp = {
         'comp1': {
-            'name': 'methane',
+            'name': 'tip5p',
             'mol_fraction': 1.0,
-            'mol_def': 'TraPPE',
+            'mol_def': 'tip5p',
             'conv_threshold': 5,
-            'radius': 1.4,
-            'singlebead': True,
+            'radius': 1.325,  # kinetic diameter of water
+            'singlebead': True,  # for rotation probability
         }
     }
 
@@ -68,17 +68,17 @@ def main(raspa_code_string, zeopp_code_string):
         dict={
             'GeneralSettings': {
                 'SimulationType': 'MonteCarlo',
-                'NumberOfCycles': 10000,
-                'NumberOfInitializationCycles': 30000,
-                'PrintEvery': 1000,
-                'CutOff': 12.0,
+                'NumberOfCycles': 5000,
+                'NumberOfInitializationCycles': 10000,
+                'PrintEvery': 5000,
+                'CutOff': 10.0,
                 'WriteBinaryRestartFileEvery': 5000,
-                'Forcefield': 'GenericMOFs',
+                'Forcefield': 'DREIDING-UFF-TIP5P-TC',
                 'RemoveAtomNumberCodeFromLabel': True,
             },
             'System': {
                 structure_label: {
-                    'ExternalTemperature': 500,
+                    'ExternalTemperature': 298,
                     'type': 'Framework'
                 }
             },
@@ -97,7 +97,7 @@ def main(raspa_code_string, zeopp_code_string):
         structure=structure,
         zeopp_code=zeopp_code,
         pressure=Float(5e5),
-        min_cycles=Int(1500),
+        min_cycles=Int(50000),
         zeopp_options=zeopp_options,
         raspa_options=raspa_options,
         raspa_parameters=raspa_parameters,
@@ -106,7 +106,7 @@ def main(raspa_code_string, zeopp_code_string):
         raspa_comp=raspa_comp,
         zeopp_atomic_radii=zeopp_atomic_radii_file,
         metadata={
-            'label': 'MultiCompIsothermWorkChain',
+            'label': 'MultiCompIsothermWorkChain-watertest',
             'description': 'Test for <{}>'.format(structure.label),
         },
     )

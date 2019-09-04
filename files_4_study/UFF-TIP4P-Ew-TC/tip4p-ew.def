@@ -14,7 +14,7 @@ rigid
 0 Ow             0.0000   0.0000   0.0000
 1 Hw            -0.7570   0.5859   0.0000
 2 Hw             0.7570   0.5859   0.0000
-3 Mw             0.0000   0.1546   0.0000
+3 Mw             0.0000   0.125   0.0000
 # Chiral centers Bond  BondDipoles Bend  UrayBradley InvBend  Torsion Imp. Torsion Bond/Bond Stretch/Bend Bend/Bend Stretch/Torsion Bend/Torsion IntraVDW IntraCoulomb
                0    3            0    0            0       0        0            0         0            0         0               0            0        0            0
 # Bond stretch: atom n1-n2, type, parameters

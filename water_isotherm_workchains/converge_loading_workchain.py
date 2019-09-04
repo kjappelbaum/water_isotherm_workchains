@@ -300,9 +300,8 @@ class ConvergeLoadingWorkchain(WorkChain):
 
         if self.ctx.counter < 1:
             return True
-
         # First check is cycles > min cycles
-        elif self.ctx.cycles > self.ctx.min_cycles:
+        if self.ctx.cycles > self.ctx.min_cycles:
             # If this is the case, get the relative changes. Get the largest one,
             # check if below threshold
             converged = []
@@ -323,11 +322,15 @@ class ConvergeLoadingWorkchain(WorkChain):
                         converged.append(False)
 
             if all(converged):
+                self.report("all loadings are converged")
                 return False  # all components are converged
             else:
+                self.report("loadings are not yet converged")
                 return True
         else:  # minimum number of cycles not reached
-            return False
+            self.report('minimum number of {} cycles not reached yet, current number of cycles {}'.format(
+                self.ctx.min_cycles, self.ctx.cycles))
+            return True
 
     def run_first_gcmc(self):
         """This function will run RaspaConvergeWorkChain for the current pressure"""

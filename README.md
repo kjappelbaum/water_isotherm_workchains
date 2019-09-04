@@ -7,6 +7,7 @@
 ## Implemented workchains in AiiDA 1.x
 
 ## Notes
+* ST2 uses a modified Coulomb term!
 
 ## Usage
 1. Read the notes
