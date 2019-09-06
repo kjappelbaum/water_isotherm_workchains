@@ -164,24 +164,20 @@ class ConvergeLoadingWorkchain(WorkChain):
                 comp_name = value.name
                 probe_radius = value.radius
                 params = {
-                    'ha':
-                        self.inputs.zeopp_parameters['accuracy'],
+                    'ha': self.inputs.zeopp_parameters['accuracy'],
                     'sa': [
                         probe_radius,
                         probe_radius,
                         self.inputs.zeopp_parameters['sa_samples'],
-                        self.inputs.structure.label + '_' + comp_name + '.sa',
                     ],
                     'block': [
                         probe_radius,
                         self.inputs.zeopp_parameters['block_samples'],
-                        self.inputs.structure.label + '_' + comp_name + '.block',
                     ],
                     'volpo': [
                         probe_radius,
                         probe_radius,
                         self.inputs.zeopp_parameters['volpo_samples'],
-                        self.inputs.structure.label + '_' + comp_name + '.volpo',
                     ],
                 }
 
@@ -229,10 +225,10 @@ class ConvergeLoadingWorkchain(WorkChain):
                 comp_name = value.name
                 zeopp_label = 'zeopp_{}'.format(comp_name)
                 bp_label = '_'.join((self.inputs.structure.label, comp_name))
-                bp_path = os.path.join(
-                    self.ctx[zeopp_label].outputs.retrieved._repository._get_base_folder().abspath,
-                    bp_label + '.block',
-                )
+                bp_dir = self.ctx[zeopp_label].outputs.retrieved._repository._get_base_folder().abspath
+                bp_filename = ''.join([bp_label, ".block"])
+                os.rename(os.path.join(bp_dir, "out.block"), os.path.join(bp_dir, bp_filename))
+                bp_path = os.path.join(bp_dir, bp_label + ".block")
 
                 with open(bp_path, 'r') as block_file:
                     self.ctx.number_blocking_spheres[comp_name] = int(block_file.readline().strip())
@@ -329,7 +325,7 @@ class ConvergeLoadingWorkchain(WorkChain):
                 return True
         else:  # minimum number of cycles not reached
             self.report('minimum number of {} cycles not reached yet, current number of cycles {}'.format(
-                self.ctx.min_cycles, self.ctx.cycles))
+                self.ctx.min_cycles.value, self.ctx.cycles))
             return True
 
     def run_first_gcmc(self):

@@ -79,6 +79,7 @@ def main(raspa_code_string, zeopp_code_string):
             'System': {
                 structure_label: {
                     'ExternalTemperature': 298,
+                    'ExternalPressure': 100000.00,
                     'type': 'Framework'
                 }
             },

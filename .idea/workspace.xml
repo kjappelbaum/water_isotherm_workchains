@@ -3,17 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="6c15f469-ceff-4704-89ca-fab7d351d2de" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/run_converge_loading.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/run_converge_loading.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/files_4_study/DREIDING-UFF-ST2-TC/force_field_mixing_rules.def" beforeDir="false" afterPath="$PROJECT_DIR$/files_4_study/DREIDING-UFF-ST2-TC/force_field_mixing_rules.def" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/files_4_study/DREIDING-UFF-TIP4P-Ew-TC/tip4p-ew.def" beforeDir="false" afterPath="$PROJECT_DIR$/files_4_study/DREIDING-UFF-TIP4P-Ew-TC/tip4p-ew.def" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/files_4_study/DREIDING-UFF-TIP4P-Ew-TC/tip4p-ew.xyz" beforeDir="false" afterPath="$PROJECT_DIR$/files_4_study/DREIDING-UFF-TIP4P-Ew-TC/tip4p-ew.xyz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/files_4_study/DREIDING-UFF-TIP5P-TC/force_field_mixing_rules.def" beforeDir="false" afterPath="$PROJECT_DIR$/files_4_study/DREIDING-UFF-TIP5P-TC/force_field_mixing_rules.def" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/files_4_study/UFF-ST2-TC/force_field_mixing_rules.def" beforeDir="false" afterPath="$PROJECT_DIR$/files_4_study/UFF-ST2-TC/force_field_mixing_rules.def" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/files_4_study/UFF-TIP4P-Ew-TC/tip4p-ew.def" beforeDir="false" afterPath="$PROJECT_DIR$/files_4_study/UFF-TIP4P-Ew-TC/tip4p-ew.def" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/files_4_study/UFF-TIP4P-Ew-TC/tip4p-ew.xyz" beforeDir="false" afterPath="$PROJECT_DIR$/files_4_study/UFF-TIP4P-Ew-TC/tip4p-ew.xyz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/files_4_study/UFF-TIP5P-TC/force_field_mixing_rules.def" beforeDir="false" afterPath="$PROJECT_DIR$/files_4_study/UFF-TIP5P-TC/force_field_mixing_rules.def" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/files_4_study/rdf_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/files_4_study/rdf_test.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/water_isotherm_workchains/converge_loading_workchain.py" beforeDir="false" afterPath="$PROJECT_DIR$/water_isotherm_workchains/converge_loading_workchain.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -120,7 +109,7 @@
       <workItem from="1559122908946" duration="3470000" />
       <workItem from="1559307037516" duration="641000" />
       <workItem from="1567101116788" duration="588000" />
-      <workItem from="1567588213694" duration="637000" />
+      <workItem from="1567588213694" duration="640000" />
     </task>
     <task id="LOCAL-00004" summary="adding MD step.">
       <created>1558792125759</created>
