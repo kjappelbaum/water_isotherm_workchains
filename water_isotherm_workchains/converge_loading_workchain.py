@@ -226,9 +226,9 @@ class ConvergeLoadingWorkchain(WorkChain):
                 zeopp_label = 'zeopp_{}'.format(comp_name)
                 bp_label = '_'.join((self.inputs.structure.label, comp_name))
                 bp_dir = self.ctx[zeopp_label].outputs.retrieved._repository._get_base_folder().abspath
-                bp_filename = ''.join([bp_label, ".block"])
-                os.rename(os.path.join(bp_dir, "out.block"), os.path.join(bp_dir, bp_filename))
-                bp_path = os.path.join(bp_dir, bp_label + ".block")
+                bp_filename = ''.join([bp_label, '.block'])
+                os.rename(os.path.join(bp_dir, 'out.block'), os.path.join(bp_dir, bp_filename))
+                bp_path = os.path.join(bp_dir, bp_label + '.block')
 
                 with open(bp_path, 'r') as block_file:
                     self.ctx.number_blocking_spheres[comp_name] = int(block_file.readline().strip())
@@ -310,18 +310,19 @@ class ConvergeLoadingWorkchain(WorkChain):
                     loading_previous = self.ctx.loading[comp_name][-2]
                     loading_current = self.ctx.loading[comp_name][-1]
 
-                    rel_change = (np.abs(loading_previous - loading_current) / loading_current)
+                    percentage_change = (np.abs(loading_previous - loading_current) / loading_current) * 100
+                    percentage_error = self.ctx.loading_dev[comp_name][-1] / loading_current * 100
 
-                    if rel_change * 100 < conv_threshold:
+                    if (percentage_change  < conv_threshold) & (percentage_error  < conv_threshold):
                         converged.append(True)
                     else:
                         converged.append(False)
 
             if all(converged):
-                self.report("all loadings are converged")
+                self.report('all loadings are converged')
                 return False  # all components are converged
             else:
-                self.report("loadings are not yet converged")
+                self.report('loadings are not yet converged')
                 return True
         else:  # minimum number of cycles not reached
             self.report('minimum number of {} cycles not reached yet, current number of cycles {}'.format(

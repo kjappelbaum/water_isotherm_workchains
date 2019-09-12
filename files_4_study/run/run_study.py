@@ -45,7 +45,9 @@ def main(raspa_code_string, zeopp_code_string):
                 structure_label = slugify(structure.filename)
                 structure.label = structure_label
 
-                zeopp_atomic_radii_file = SinglefileData(file=os.path.abspath('../test_files/zeopp.rad'))
+                zeopp_atomic_radii_file = SinglefileData(file=os.path.abspath(
+                    '/home/kevin/Dropbox/Documents/uni/EPFL/master_thesis/water_isotherm_workchains/test_files/zeopp.rad'
+                ))
 
                 zeopp_options = {
                     'resources': {
@@ -53,7 +55,7 @@ def main(raspa_code_string, zeopp_code_string):
                         'tot_num_mpiprocs': 1
                     },
                     'max_memory_kb': 2000000,
-                    'max_wallclock_seconds': 2 * 30 * 60,
+                    'max_wallclock_seconds': 4 * 30 * 60,
                     'withmpi': False,
                 }
 
@@ -111,7 +113,7 @@ def main(raspa_code_string, zeopp_code_string):
                     ConvergeLoadingWorkchain,
                     structure=structure,
                     zeopp_code=zeopp_code,
-                    pressure=pressure,
+                    pressure=Float(pressure),
                     min_cycles=Int(50000),
                     zeopp_options=zeopp_options,
                     raspa_options=raspa_options,
@@ -121,8 +123,11 @@ def main(raspa_code_string, zeopp_code_string):
                     raspa_comp=raspa_comp,
                     zeopp_atomic_radii=zeopp_atomic_radii_file,
                     metadata={
-                        'label': 'MultiCompIsothermWorkChain-watertest',
-                        'description': 'Test for <{}>'.format(structure.label),
+                        'label':
+                            'MultiCompIsothermWorkChain-watertest',
+                        'description':
+                            'Test for structure <{}> at pressure {} and with forcefield {}'.format(
+                                structure.label, pressure, ff),
                     },
                 )
 
